@@ -59,11 +59,11 @@ const HomePage = () => {
       <nav className="relative z-50 px-6 py-5 bg-white/80 backdrop-blur-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 bg-linear-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
               <Car size={24} className="text-white" />
             </div>
             <span className="text-2xl font-bold text-gray-900 tracking-tight">
-              Moto<span className="bg-gradient-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">Mate</span>
+              Moto<span className="bg-linear-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">Mate</span>
             </span>
           </div>
           <div className="hidden md:flex items-center gap-8">
@@ -71,7 +71,7 @@ const HomePage = () => {
             <a href="#roles" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">User Roles</a>
             <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">About</a>
           </div>
-          <button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg">
+          <button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg">
             Get Started
           </button>
         </div>
@@ -88,7 +88,7 @@ const HomePage = () => {
             
             <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 leading-tight mb-6 animate-slide-up">
               Your Vehicle,{' '}
-              <span className="bg-gradient-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">Serviced</span>
+              <span className="bg-linear-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">Serviced</span>
               <br />
               At Your Doorstep
             </h1>
@@ -99,7 +99,7 @@ const HomePage = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up" style={{ animationDelay: '0.4s' }}>
-              <button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2 group">
+              <button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2 group">
                 Book a Service
                 <ChevronRight size={20} />
               </button>
@@ -118,7 +118,7 @@ const HomePage = () => {
               { value: "4.9", label: "Average Rating" },
             ].map((stat, idx) => (
               <div key={idx} className="text-center p-6 rounded-2xl bg-white border border-gray-200 shadow-sm">
-                <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent mb-2">{stat.value}</div>
+                <div className="text-3xl md:text-4xl font-bold bg-linear-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent mb-2">{stat.value}</div>
                 <div className="text-sm text-gray-600">{stat.label}</div>
               </div>
             ))}
@@ -131,7 +131,7 @@ const HomePage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Powerful <span className="bg-gradient-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">Features</span>
+              Powerful <span className="bg-linear-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">Features</span>
             </h2>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
               Everything you need for seamless vehicle maintenance in one integrated platform.
@@ -144,7 +144,7 @@ const HomePage = () => {
                 key={idx}
                 className="group p-8 rounded-2xl bg-white border border-gray-200 hover:border-blue-300 transition-all duration-500 hover:shadow-lg hover:-translate-y-1"
               >
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center mb-6 text-white group-hover:scale-110 transition-transform duration-300">
+                <div className="w-14 h-14 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 flex items-center justify-center mb-6 text-white group-hover:scale-110 transition-transform duration-300">
                   <feature.icon size={28} />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">{feature.title}</h3>
@@ -160,7 +160,7 @@ const HomePage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Choose Your <span className="bg-gradient-to-r from-green-500 to-green-600 bg-clip-text text-transparent">Role</span>
+              Choose Your <span className="bg-linear-to-r from-green-500 to-green-600 bg-clip-text text-transparent">Role</span>
             </h2>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
               Sign up as a customer, worker, service center owner, fleet manager, or admin.
@@ -174,7 +174,7 @@ const HomePage = () => {
                 onClick={() => setActiveRole(activeRole === role.title ? null : role.title)}
                 className={`p-6 rounded-2xl border transition-all duration-300 text-left group ${
                   activeRole === role.title
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg'
+                    ? 'bg-linear-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg'
                     : 'bg-white border-gray-200 hover:border-blue-300 text-gray-900'
                 }`}
               >
@@ -204,7 +204,7 @@ const HomePage = () => {
               Join MotoMate today and experience hassle-free vehicle servicing.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg">
+              <button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg">
                 Sign Up Now
               </button>
               <button className="bg-gray-100 text-gray-900 px-8 py-4 rounded-xl font-semibold text-lg border border-gray-300 hover:bg-gray-200 transition-colors">
@@ -221,7 +221,7 @@ const HomePage = () => {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                Why Choose <span className="bg-gradient-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">MotoMate</span>?
+                Why Choose <span className="bg-linear-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">MotoMate</span>?
               </h2>
               <p className="text-gray-600 text-lg mb-8 leading-relaxed">
                 MotoMate is a full-stack vehicle service and maintenance platform developed to address 
@@ -237,7 +237,7 @@ const HomePage = () => {
                   "Fleet management for businesses",
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-linear-to-r from-blue-500 to-blue-600 flex items-center justify-center shrink-0">
                       <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
@@ -254,18 +254,18 @@ const HomePage = () => {
                     <div className="w-48 h-48 bg-blue-100 rounded-full opacity-20 blur-3xl animate-pulse" />
                   </div>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-32 h-32 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg animate-bounce">
+                    <div className="w-32 h-32 bg-linear-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg animate-bounce">
                       <Car size={48} className="text-white" />
                       <div className="absolute w-full h-full rounded-2xl border-2 border-blue-300 scale-125" />
                     </div>
                   </div>
-                  <div className="absolute top-8 right-8 w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center text-white shadow-lg animate-bounce" style={{ animationDelay: '1s' }}>
+                  <div className="absolute top-8 right-8 w-16 h-16 bg-linear-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center text-white shadow-lg animate-bounce" style={{ animationDelay: '1s' }}>
                     <MapPin size={24} />
                   </div>
                   <div className="absolute bottom-8 left-8 w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center text-gray-900 border border-gray-300 animate-bounce" style={{ animationDelay: '2s' }}>
                     <Shield size={24} />
                   </div>
-                  <div className="absolute bottom-8 right-12 w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white animate-bounce" style={{ animationDelay: '3s' }}>
+                  <div className="absolute bottom-8 right-12 w-12 h-12 bg-linear-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white animate-bounce" style={{ animationDelay: '3s' }}>
                     <Zap size={20} />
                   </div>
                   <div className="absolute top-12 left-12 w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-gray-600 animate-bounce" style={{ animationDelay: '1.5s' }}>
@@ -283,7 +283,7 @@ const HomePage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-linear-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                 <Car size={24} className="text-white" />
               </div>
               <span className="text-xl font-bold text-gray-900">MotoMate</span>
