@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useRef, useEffect, use } from 'react';
 import { Car, MapPin, Shield, Zap, Wallet, Truck, User, Wrench, Building, Users, ShieldCheck, ChevronRight } from 'lucide-react';
 
 const features = [
@@ -45,6 +45,49 @@ const userRoles = [
 
 const HomePage = () => {
   const [activeRole, setActiveRole] = useState(null);
+  const sectionRef = useRef(null);
+  const [highlight, setHighlight] = useState(false);
+
+  const headingRef = useRef(null);
+  const upliftTimeoutRef = useRef(null);
+
+  const scrollToSection = () => {
+    sectionRef.current.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  const handleCTAClick = () => {
+    // Scroll to the roles section and briefly highlight/uplift the heading
+    scrollToSection();
+    setHighlight(true);
+    if (upliftTimeoutRef.current) clearTimeout(upliftTimeoutRef.current);
+    upliftTimeoutRef.current = setTimeout(() => setHighlight(false), 1200);
+  };
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setHighlight(true);
+          // remove highlight after 2s
+          setTimeout(() => setHighlight(false), 2000);
+        }
+      },
+      { threshold: 0.5 } // trigger when 50% of section is visible
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => {
+      if (sectionRef.current) observer.unobserve(sectionRef.current);
+      if (upliftTimeoutRef.current) clearTimeout(upliftTimeoutRef.current);
+    };
+  }, []);
+
 
   return (
     <div className="min-h-screen bg-white text-gray-900 overflow-hidden">
@@ -85,16 +128,16 @@ const HomePage = () => {
               <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
               <span className="text-sm text-gray-600 font-medium">Smart Vehicle Service Platform</span>
             </div>
-            
+
             <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 leading-tight mb-6 animate-slide-up">
               Your Vehicle,{' '}
               <span className="bg-linear-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">Serviced</span>
               <br />
               At Your Doorstep
             </h1>
-            
+
             <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-10 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-              MotoMate connects you with verified service professionals for doorstep vehicle maintenance, 
+              MotoMate connects you with verified service professionals for doorstep vehicle maintenance,
               emergency roadside assistance, and comprehensive fleet management.
             </p>
 
@@ -156,12 +199,21 @@ const HomePage = () => {
       </section>
 
       {/* User Roles Section */}
-      <section id="roles" className="relative z-10 px-6 py-24">
+      <section id="roles" ref={sectionRef} className="relative z-10 px-6 py-24">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Choose Your <span className="bg-linear-to-r from-green-500 to-green-600 bg-clip-text text-transparent">Role</span>
+            <h2
+              ref={headingRef}
+              className={`text-4xl md:text-5xl font-bold mb-4 transform transition-all duration-500 ${highlight ? "text-green-600 animate-pulse -translate-y-2 scale-105" : "text-gray-900 translate-y-0 scale-100"
+                }`}
+              style={{ willChange: 'transform, color' }}
+            >
+              Choose Your{" "}
+              <span className="bg-linear-to-r from-green-500 to-green-600 bg-clip-text text-transparent">
+                Role
+              </span>
             </h2>
+
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
               Sign up as a customer, worker, service center owner, fleet manager, or admin.
             </p>
@@ -172,23 +224,20 @@ const HomePage = () => {
               <button
                 key={idx}
                 onClick={() => setActiveRole(activeRole === role.title ? null : role.title)}
-                className={`p-6 rounded-2xl border transition-all duration-300 text-left group ${
-                  activeRole === role.title
-                    ? 'bg-linear-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg'
-                    : 'bg-white border-gray-200 hover:border-blue-300 text-gray-900'
-                }`}
+                className={`p-6 rounded-2xl border transition-all duration-300 text-left group ${activeRole === role.title
+                  ? 'bg-linear-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg'
+                  : 'bg-white border-gray-200 hover:border-blue-300 text-gray-900'
+                  }`}
               >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${
-                  activeRole === role.title
-                    ? 'bg-white/20'
-                    : 'bg-blue-50 text-blue-600'
-                }`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${activeRole === role.title
+                  ? 'bg-white/20'
+                  : 'bg-blue-50 text-blue-600'
+                  }`}>
                   <role.icon size={24} />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">{role.title}</h3>
-                <p className={`text-sm ${
-                  activeRole === role.title ? 'text-white/80' : 'text-gray-600'
-                }`}>
+                <p className={`text-sm ${activeRole === role.title ? 'text-white/80' : 'text-gray-600'
+                  }`}>
                   {role.description}
                 </p>
               </button>
@@ -204,10 +253,10 @@ const HomePage = () => {
               Join MotoMate today and experience hassle-free vehicle servicing.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg">
+              <button onClick={handleCTAClick} className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg">
                 Sign Up Now
               </button>
-              <button className="bg-gray-100 text-gray-900 px-8 py-4 rounded-xl font-semibold text-lg border border-gray-300 hover:bg-gray-200 transition-colors">
+              <button onClick={handleCTAClick} className="bg-gray-100 text-gray-900 px-8 py-4 rounded-xl font-semibold text-lg border border-gray-300 hover:bg-gray-200 transition-colors">
                 Login
               </button>
             </div>
@@ -224,8 +273,8 @@ const HomePage = () => {
                 Why Choose <span className="bg-linear-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">MotoMate</span>?
               </h2>
               <p className="text-gray-600 text-lg mb-8 leading-relaxed">
-                MotoMate is a full-stack vehicle service and maintenance platform developed to address 
-                the limitations of traditional vehicle servicing systems. We eliminate long waiting times, 
+                MotoMate is a full-stack vehicle service and maintenance platform developed to address
+                the limitations of traditional vehicle servicing systems. We eliminate long waiting times,
                 lack of transparency, delayed responses, and poor communication.
               </p>
               <div className="space-y-4">
