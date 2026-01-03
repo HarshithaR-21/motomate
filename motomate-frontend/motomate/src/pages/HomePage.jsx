@@ -1,5 +1,6 @@
 
-import { useState, useRef, useEffect, use } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Car, MapPin, Shield, Zap, Wallet, Truck, User, Wrench, Building, Users, ShieldCheck, ChevronRight } from 'lucide-react';
 
 const features = [
@@ -47,9 +48,9 @@ const HomePage = () => {
   const [activeRole, setActiveRole] = useState(null);
   const sectionRef = useRef(null);
   const [highlight, setHighlight] = useState(false);
-
   const headingRef = useRef(null);
   const upliftTimeoutRef = useRef(null);
+  const navigate = useNavigate();
 
   const scrollToSection = () => {
     sectionRef.current.scrollIntoView({
@@ -87,6 +88,16 @@ const HomePage = () => {
       if (upliftTimeoutRef.current) clearTimeout(upliftTimeoutRef.current);
     };
   }, []);
+
+  const handleNavigation = (roleTitle) => {
+    console.log("role: " + roleTitle);
+    setActiveRole(activeRole === roleTitle ? null : roleTitle);
+
+    // Convert role title → lowercase, replace spaces with hyphens
+    const path = `/signup/${roleTitle.toLowerCase().replace(/\s+/g, "-")}`;
+    navigate(path);
+  };
+
 
 
   return (
@@ -223,7 +234,7 @@ const HomePage = () => {
             {userRoles.map((role, idx) => (
               <button
                 key={idx}
-                onClick={() => setActiveRole(activeRole === role.title ? null : role.title)}
+                onClick={() => handleNavigation(role.title)}
                 className={`p-6 rounded-2xl border transition-all duration-300 text-left group ${activeRole === role.title
                   ? 'bg-linear-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg'
                   : 'bg-white border-gray-200 hover:border-blue-300 text-gray-900'
@@ -256,9 +267,9 @@ const HomePage = () => {
               <button onClick={handleCTAClick} className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg">
                 Sign Up Now
               </button>
-              <button onClick={handleCTAClick} className="bg-gray-100 text-gray-900 px-8 py-4 rounded-xl font-semibold text-lg border border-gray-300 hover:bg-gray-200 transition-colors">
+              <Link to="/login"><button onClick={handleCTAClick} className="bg-gray-100 text-gray-900 px-8 py-4 rounded-xl font-semibold text-lg border border-gray-300 hover:bg-gray-200 transition-colors">
                 Login
-              </button>
+              </button></Link>
             </div>
           </div>
         </div>
@@ -338,7 +349,7 @@ const HomePage = () => {
               <span className="text-xl font-bold text-gray-900">MotoMate</span>
             </div>
             <p className="text-gray-600 text-sm text-center">
-              © 2024 MotoMate. Smart Vehicle Service Platform. All rights reserved.
+              © 2025-26 MotoMate. Smart Vehicle Service Platform. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
               <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Privacy</a>
