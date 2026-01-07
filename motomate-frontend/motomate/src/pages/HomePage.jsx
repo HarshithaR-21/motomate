@@ -46,57 +46,17 @@ const userRoles = [
 
 const HomePage = () => {
   const [activeRole, setActiveRole] = useState(null);
-  const sectionRef = useRef(null);
-  const [highlight, setHighlight] = useState(false);
-  const headingRef = useRef(null);
-  const upliftTimeoutRef = useRef(null);
   const navigate = useNavigate();
 
-  const scrollToSection = () => {
-    sectionRef.current.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  };
 
-  const handleCTAClick = () => {
-    // Scroll to the roles section and briefly highlight/uplift the heading
-    scrollToSection();
-    setHighlight(true);
-    if (upliftTimeoutRef.current) clearTimeout(upliftTimeoutRef.current);
-    upliftTimeoutRef.current = setTimeout(() => setHighlight(false), 1200);
-  };
+  // const handleNavigation = (roleTitle) => {
+  //   console.log("role: " + roleTitle);
+  //   setActiveRole(activeRole === roleTitle ? null : roleTitle);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setHighlight(true);
-          // remove highlight after 2s
-          setTimeout(() => setHighlight(false), 2000);
-        }
-      },
-      { threshold: 0.5 } // trigger when 50% of section is visible
-    );
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
-    return () => {
-      if (sectionRef.current) observer.unobserve(sectionRef.current);
-      if (upliftTimeoutRef.current) clearTimeout(upliftTimeoutRef.current);
-    };
-  }, []);
-
-  const handleNavigation = (roleTitle) => {
-    console.log("role: " + roleTitle);
-    setActiveRole(activeRole === roleTitle ? null : roleTitle);
-
-    // Convert role title → lowercase, replace spaces with hyphens
-    const path = `/signup/${roleTitle.toLowerCase().replace(/\s+/g, "-")}`;
-    navigate(path);
-  };
+  //   // Convert role title → lowercase, replace spaces with hyphens
+  //   const path = `/signup/${roleTitle.toLowerCase().replace(/\s+/g, "-")}`;
+  //   navigate(path);
+  // };
 
 
 
@@ -210,14 +170,11 @@ const HomePage = () => {
       </section>
 
       {/* User Roles Section */}
-      <section id="roles" ref={sectionRef} className="relative z-10 px-6 py-24">
+      <section id="roles" className="relative z-10 px-6 py-24">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2
-              ref={headingRef}
-              className={`text-4xl md:text-5xl font-bold mb-4 transform transition-all duration-500 ${highlight ? "text-green-600 animate-pulse -translate-y-2 scale-105" : "text-gray-900 translate-y-0 scale-100"
-                }`}
-              style={{ willChange: 'transform, color' }}
+              className="text-4xl md:text-5xl font-bold mb-4"
             >
               Choose Your{" "}
               <span className="bg-linear-to-r from-green-500 to-green-600 bg-clip-text text-transparent">
@@ -230,7 +187,7 @@ const HomePage = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">
+          {/* <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">
             {userRoles.map((role, idx) => (
               <button
                 key={idx}
@@ -253,7 +210,7 @@ const HomePage = () => {
                 </p>
               </button>
             ))}
-          </div>
+          </div> */}
 
           {/* Login/Signup CTA */}
           <div className="bg-white border border-gray-200 rounded-3xl p-10 md:p-14 text-center max-w-3xl mx-auto shadow-lg">
@@ -264,10 +221,10 @@ const HomePage = () => {
               Join MotoMate today and experience hassle-free vehicle servicing.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button onClick={handleCTAClick} className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg">
+              <Link to="/signup"><button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg">
                 Sign Up Now
-              </button>
-              <Link to="/login"><button onClick={handleCTAClick} className="bg-gray-100 text-gray-900 px-8 py-4 rounded-xl font-semibold text-lg border border-gray-300 hover:bg-gray-200 transition-colors">
+              </button></Link>
+              <Link to="/login"><button className="bg-gray-100 text-gray-900 px-8 py-4 rounded-xl font-semibold text-lg border border-gray-300 hover:bg-gray-200 transition-colors">
                 Login
               </button></Link>
             </div>

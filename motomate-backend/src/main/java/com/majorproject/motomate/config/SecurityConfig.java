@@ -2,40 +2,35 @@ package com.majorproject.motomate.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
+@EnableWebSecurity
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http,
-            CorsConfigurationSource corsConfigurationSource
-    ) throws Exception {
-
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // ✅ REQUIRED syntax for Spring Security 6
-            .cors(cors -> cors.configurationSource(corsConfigurationSource))
-
-            // Disable CSRF for REST APIs
             .csrf(csrf -> csrf.disable())
-
-            // Authorization rules
+            .cors(cors -> cors.configure(http))
             .authorizeHttpRequests(auth -> auth
-                // Allow OPTIONS requests for CORS preflight
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                // Public endpoints
-                .requestMatchers(
-                        "/api/signup/**",
-                        "/api/login/**"
-                ).permitAll()
-                // All other requests require authentication
+                .requestMatchers("/api/auth/**").permitAll() // Allow all auth endpoints
                 .anyRequest().authenticated()
+            )
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             );
-
+        
         return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

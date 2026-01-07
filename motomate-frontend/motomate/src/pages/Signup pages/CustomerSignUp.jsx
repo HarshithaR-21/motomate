@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Car, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import axios from 'axios'
+import Navigation from '../../Components/Navigation';
+import Footer from '../../Components/Footer';
 
 const CustomerSignUp = () => {
     const [formData, setFormData] = useState({
@@ -13,9 +15,18 @@ const CustomerSignUp = () => {
         city: '',
         state: '',
         pinCode: '',
+        role: '',
         password: '',
         confirmPassword: '',
     });
+
+    const { role } = useParams();
+
+    useEffect(() => {
+        if (role) {
+            setFormData(prev => ({ ...prev, role: role.toLowerCase() }));
+        }
+    }, [role]);
 
     const [errors, setErrors] = useState({});
     const [showPassword, setShowPassword] = useState(false);
@@ -99,30 +110,45 @@ const CustomerSignUp = () => {
         setErrors(newErrors);
 
         if (Object.keys(newErrors).length === 0) {
-            // Simulate successful signup
-            try{
-                const response = await axios.post('http://localhost:8080/api/signup/customer', formData, {withCredentials: true});
+            try {
+                // Prepare payload with only fields expected by backend
+                const payload = {
+                    ...formData,
+                    role: formData.role.toUpperCase()
+                };
+                delete payload.confirmPassword; // Remove confirmPassword as backend doesn't need it
+                console.log("Submitting payload:", payload);
+                const response = await axios.post(
+                    'http://localhost:8080/api/auth/signup',
+                    payload,
+                    { withCredentials: true }
+                );
+
+                toast.success('Account created successfully!');
                 console.log(response.data);
-            }
-            catch(error)
-            {
+
+                // Optionally redirect to login
+                // navigate(`/login/${role}`);
+
+                // Reset form
+                setFormData({
+                    name: '',
+                    phone: '',
+                    email: '',
+                    area: '',
+                    city: '',
+                    state: '',
+                    pinCode: '',
+                    role: role || '',
+                    password: '',
+                    confirmPassword: '',
+                });
+
+            } catch (error) {
                 console.log(error);
+                console.log(error.response?.data); // Log backend error
+                toast.error(error.response?.data?.error || "Signup failed. Please try again.");
             }
-            toast.success('Account created successfully!');
-            // Reset form or redirect
-            setFormData({
-                name: '',
-                phone: '',
-                email: '',
-                area: '',
-                city: '',
-                state: '',
-                pinCode: '',
-                password: '',
-                confirmPassword: '',
-            });
-        } else {
-            toast.error('Please fix the errors below');
         }
     };
 
@@ -137,26 +163,7 @@ const CustomerSignUp = () => {
             </div>
 
             {/* Navigation */}
-            <nav className="relative z-50 px-6 py-5 bg-white/80 backdrop-blur-sm border-b border-gray-200">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-linear-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
-                            <Car size={24} className="text-white" />
-                        </div>
-                        <span className="text-2xl font-bold text-gray-900 tracking-tight">
-                            Moto<span className="bg-linear-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">Mate</span>
-                        </span>
-                    </div>
-                    <div className="hidden md:flex items-center gap-8">
-                        <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">Features</a>
-                        <a href="#roles" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">User Roles</a>
-                        <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">About</a>
-                    </div>
-                    <button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg">
-                        Get Started
-                    </button>
-                </div>
-            </nav>
+            <Navigation />
 
             {/* Sign Up Section */}
             <section className="relative z-10 px-6 py-24">
@@ -298,50 +305,31 @@ const CustomerSignUp = () => {
                         </button>
                         <div className='text-center text-gray-600 underline mt-4 mb-4'>or</div>
                         <div className="mb-6">
-                        <button
-                            type="button"
-                            onClick={() => toast('Google Sign-Up clicked')}
-                            className="w-full border border-gray-300 bg-white text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-3"
-                        >
-                            <img
-                                src="https://developers.google.com/identity/images/g-logo.png"
-                                alt="Google"
-                                className="w-5 h-5"
-                            />
-                            Sign up with Google
-                        </button>
-                    </div>
+                            <button
+                                type="button"
+                                onClick={() => toast('Google Sign-Up clicked')}
+                                className="w-full border border-gray-300 bg-white text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-3"
+                            >
+                                <img
+                                    src="https://developers.google.com/identity/images/g-logo.png"
+                                    alt="Google"
+                                    className="w-5 h-5"
+                                />
+                                Sign up with Google
+                            </button>
+                        </div>
 
 
                     </form>
 
-                    <Link to="/login" className="text-center mt-6 text-gray-600">
-                        Already have an account? <a href="#" className="text-blue-600 hover:underline">Login</a>
-                    </Link>
+                    <p className="text-center mt-6 text-gray-600">
+                        Already have an account? <Link to={role ? `/login/${role.toLowerCase()}` : "/login"} className="text-blue-600 hover:underline">Login</Link>
+                    </p>
                 </div>
             </section>
 
             {/* Footer */}
-            <footer className="relative z-10 px-6 py-12 border-t border-gray-200 bg-white">
-                <div className="max-w-7xl mx-auto">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-linear-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                                <Car size={24} className="text-white" />
-                            </div>
-                            <span className="text-xl font-bold text-gray-900">MotoMate</span>
-                        </div>
-                        <p className="text-gray-600 text-sm text-center">
-                            © 2025-26 MotoMate. Smart Vehicle Service Platform. All rights reserved.
-                        </p>
-                        <div className="flex items-center gap-6">
-                            <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Privacy</a>
-                            <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Terms</a>
-                            <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Contact</a>
-                        </div>
-                    </div>
-                </div>
-            </footer>
+            <Footer />
         </div>
     );
 };
