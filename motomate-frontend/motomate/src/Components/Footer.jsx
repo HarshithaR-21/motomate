@@ -13,7 +13,7 @@ const Footer = () => {
                         <span className="text-xl font-bold text-gray-900">MotoMate</span>
                     </div>
                     <p className="text-gray-600 text-sm text-center">
-                        © 2024 MotoMate. Smart Vehicle Service Platform. All rights reserved.
+                        © 2026 MotoMate. Smart Vehicle Service Platform. All rights reserved.
                     </p>
                     <div className="flex items-center gap-6">
                         <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors text-sm">Privacy</a>

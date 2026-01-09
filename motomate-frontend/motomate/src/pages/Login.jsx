@@ -52,7 +52,7 @@ const Login = () => {
                 const response = await axios.post('http://localhost:8080/api/auth/login', formData, {withCredentials: true});
                 console.log(response.data);
                 toast.success("Login successful!"); 
-                
+                navigate(`/dashboard/${selectedRole.toLowerCase()}`);
             }
             catch(error)
             {

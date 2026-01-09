@@ -127,9 +127,7 @@ const CustomerSignUp = () => {
                 toast.success('Account created successfully!');
                 console.log(response.data);
 
-                // Optionally redirect to login
-                // navigate(`/login/${role}`);
-
+                setTimeout(() => {navigate(`/login/${role}`), 1500});
                 // Reset form
                 setFormData({
                     name: '',

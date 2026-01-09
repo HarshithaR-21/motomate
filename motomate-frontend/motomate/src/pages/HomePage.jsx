@@ -1,6 +1,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Car, MapPin, Shield, Zap, Wallet, Truck, User, Wrench, Building, Users, ShieldCheck, ChevronRight } from 'lucide-react';
 
 const features = [
@@ -36,29 +37,7 @@ const features = [
   },
 ];
 
-const userRoles = [
-  { icon: User, title: "Customer", description: "Book services, track progress, access emergency support" },
-  { icon: Wrench, title: "Worker", description: "Accept jobs, navigate to locations, manage earnings" },
-  { icon: Building, title: "Service Center Owner", description: "Manage business, workers, and service requests" },
-  { icon: Users, title: "Fleet Manager", description: "Oversee multiple vehicles and bulk servicing" },
-  { icon: ShieldCheck, title: "Admin", description: "Full platform control, analytics, and verification" },
-];
-
 const HomePage = () => {
-  const [activeRole, setActiveRole] = useState(null);
-  const navigate = useNavigate();
-
-
-  // const handleNavigation = (roleTitle) => {
-  //   console.log("role: " + roleTitle);
-  //   setActiveRole(activeRole === roleTitle ? null : roleTitle);
-
-  //   // Convert role title → lowercase, replace spaces with hyphens
-  //   const path = `/signup/${roleTitle.toLowerCase().replace(/\s+/g, "-")}`;
-  //   navigate(path);
-  // };
-
-
 
   return (
     <div className="min-h-screen bg-white text-gray-900 overflow-hidden">
@@ -70,7 +49,7 @@ const HomePage = () => {
       </div>
 
       {/* Navigation */}
-      <nav className="relative z-50 px-6 py-5 bg-white/80 backdrop-blur-sm border-b border-gray-200">
+      <nav className="fixed top-0 left-0 w-full z-50 px-6 py-5 bg-white/80 backdrop-blur-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-linear-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
@@ -85,14 +64,14 @@ const HomePage = () => {
             <a href="#roles" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">User Roles</a>
             <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">About</a>
           </div>
-          <button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg">
+          <Link to="/signup"><button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg">
             Get Started
-          </button>
+          </button></Link>
         </div>
-      </nav>
+      </nav >
 
       {/* Hero Section */}
-      <section className="relative z-10 px-6 pt-16 pb-24">
+      < section className="relative z-10 px-6 pt-16 pb-24 mt-8" >
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-4xl mx-auto">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 border border-gray-200 mb-8 animate-fade-in">
@@ -114,11 +93,11 @@ const HomePage = () => {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up" style={{ animationDelay: '0.4s' }}>
               <button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2 group">
-                Book a Service
+                <a href="#roles">Book a Service</a>
                 <ChevronRight size={20} />
               </button>
               <button className="bg-gray-100 text-gray-900 px-8 py-4 rounded-xl font-semibold text-lg border border-gray-300 hover:bg-gray-200 transition-colors">
-                Learn More
+                <a href="#features">Learn More</a>
               </button>
             </div>
           </div>
@@ -138,40 +117,54 @@ const HomePage = () => {
             ))}
           </div>
         </div>
-      </section>
+      </section >
 
       {/* Features Section */}
-      <section id="features" className="relative z-10 px-6 py-24 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
+      < section id="features" className="relative z-10 px-6 py-24 bg-gray-50" >
+
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          viewport={{ once: true }} className="max-w-7xl mx-auto"
+        >
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               Powerful <span className="bg-linear-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">Features</span>
             </h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+            <p className="text-gray-600 text-lg max-w-2xl mx-auto p-4">
               Everything you need for seamless vehicle maintenance in one integrated platform.
             </p>
-          </div>
+            <div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, idx) => (
-              <div
-                key={idx}
-                className="group p-8 rounded-2xl bg-white border border-gray-200 hover:border-blue-300 transition-all duration-500 hover:shadow-lg hover:-translate-y-1"
-              >
-                <div className="w-14 h-14 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 flex items-center justify-center mb-6 text-white group-hover:scale-110 transition-transform duration-300">
-                  <feature.icon size={28} />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">{feature.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {features.map((feature, idx) => (
+                  <div
+                    key={idx}
+                    className="group p-8 rounded-2xl bg-white border border-gray-200 hover:border-blue-300 transition-all duration-500 hover:shadow-lg hover:-translate-y-1"
+                  >
+                    <div className="w-14 h-14 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 flex items-center justify-center mb-6 text-white group-hover:scale-110 transition-transform duration-300">
+                      <feature.icon size={28} />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-3">{feature.title}</h3>
+                    <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </motion.div>
+      </section >
 
       {/* User Roles Section */}
-      <section id="roles" className="relative z-10 px-6 py-24">
-        <div className="max-w-7xl mx-auto">
+      < section id="roles" className="relative z-10 px-6 py-24" >
+          <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          viewport={{ once: true }} 
+          className="max-w-7xl mx-auto"
+        >
           <div className="text-center mb-16">
             <h2
               className="text-4xl md:text-5xl font-bold mb-4"
@@ -229,11 +222,11 @@ const HomePage = () => {
               </button></Link>
             </div>
           </div>
-        </div>
-      </section>
+        </motion.div>
+      </section >
 
       {/* About Section */}
-      <section id="about" className="relative z-10 px-6 py-24 bg-gray-50">
+      < section id="about" className="relative z-10 px-6 py-24 bg-gray-50" >
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
@@ -293,10 +286,10 @@ const HomePage = () => {
             </div>
           </div>
         </div>
-      </section>
+      </section >
 
       {/* Footer */}
-      <footer className="relative z-10 px-6 py-12 border-t border-gray-200 bg-white">
+      < footer className="relative z-10 px-6 py-12 border-t border-gray-200 bg-white" >
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
@@ -315,8 +308,8 @@ const HomePage = () => {
             </div>
           </div>
         </div>
-      </footer>
-    </div>
+      </footer >
+    </div >
   );
 };
 
