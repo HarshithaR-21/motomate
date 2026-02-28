@@ -146,4 +146,14 @@ public class UserModel {
     public void setPinCode(String pinCode) {
         this.pinCode = pinCode;
     }
+
+    // security helpers
+    public java.util.Collection<org.springframework.security.core.GrantedAuthority> getAuthorities() {
+        if (role == null) {
+            return java.util.List.of();
+        }
+        return java.util.List.of(
+                new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + role.name())
+        );
+    }
 }

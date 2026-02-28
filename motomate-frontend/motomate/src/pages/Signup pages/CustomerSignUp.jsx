@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Car, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios'
 import Navigation from '../../Components/Navigation';
 import Footer from '../../Components/Footer';
@@ -21,6 +21,7 @@ const CustomerSignUp = () => {
     });
 
     const { role } = useParams();
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (role) {
