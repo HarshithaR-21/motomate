@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios'
 import Navigation from '../../Components/Navigation';
 import Footer from '../../Components/Footer';
+import LocationSelector from '../../Components/LocationSelector';
 
 const CustomerSignUp = () => {
     const [formData, setFormData] = useState({
@@ -128,7 +129,7 @@ const CustomerSignUp = () => {
                 toast.success('Account created successfully!');
                 console.log(response.data);
 
-                setTimeout(() => {navigate(`/login/${role}`), 1500});
+                setTimeout(() => { navigate(`/login/${role}`), 1500 });
                 // Reset form
                 setFormData({
                     name: '',
@@ -205,50 +206,7 @@ const CustomerSignUp = () => {
                         </div>
 
                         {/* Address */}
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <input type="text" name="area" value={formData.area} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Area"
-                                    />
-                                    {errors.area && <p className="text-red-500 text-sm mt-1">{errors.area}</p>}
-                                </div>
-                                <div>
-                                    <input
-                                        type="text"
-                                        name="city"
-                                        value={formData.city}
-                                        onChange={handleChange}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="City"
-                                    />
-                                    {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
-                                </div>
-                                <div>
-                                    <input
-                                        type="text"
-                                        name="state"
-                                        value={formData.state}
-                                        onChange={handleChange}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="State"
-                                    />
-                                    {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
-                                </div>
-                                <div>
-                                    <input
-                                        type="text"
-                                        name="pinCode"
-                                        value={formData.pinCode}
-                                        onChange={handleChange}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="Pin Code"
-                                    />
-                                    {errors.pinCode && <p className="text-red-500 text-sm mt-1">{errors.pinCode}</p>}
-                                </div>
-                            </div>
-                        </div>
-
+                        <LocationSelector formData={formData} setFormData={setFormData} errors={errors} setErrors={setErrors} />
                         {/* Password */}
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
@@ -302,7 +260,7 @@ const CustomerSignUp = () => {
                             Sign Up
                             <ChevronRight size={20} />
                         </button>
-                        <div className='text-center text-gray-600 underline mt-4 mb-4'>or</div>
+                        {/* <div className='text-center text-gray-600 underline mt-4 mb-4'>or</div>
                         <div className="mb-6">
                             <button
                                 type="button"
@@ -316,7 +274,7 @@ const CustomerSignUp = () => {
                                 />
                                 Sign up with Google
                             </button>
-                        </div>
+                        </div> */}
 
 
                     </form>

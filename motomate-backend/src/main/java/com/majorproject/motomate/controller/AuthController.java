@@ -10,7 +10,6 @@ import com.majorproject.motomate.model.UserModel;
 import com.majorproject.motomate.model.UserRoles;
 import com.majorproject.motomate.service.AuthService;
 
-
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -28,13 +27,13 @@ public class AuthController {
             user.setName(request.getName());
             user.setPhone(request.getPhone());
             user.setRole(request.getRole());
-            
+
             // Set address fields
             user.setArea(request.getArea());
             user.setCity(request.getCity());
             user.setState(request.getState());
             user.setPinCode(request.getPinCode());
-            
+
             // Set role-specific fields
             if (request.getRole() == UserRoles.SERVICE_CENTER_OWNER) {
                 user.setBusinessName(request.getBusinessName());
@@ -45,10 +44,10 @@ public class AuthController {
             }
 
             UserModel savedUser = authService.registerUser(user);
-            
+
             // Generate token
             String token = authService.generateToken(savedUser);
-            
+
             // Set cookie
             Cookie cookie = new Cookie("jwt", token);
             cookie.setHttpOnly(true);
@@ -57,13 +56,12 @@ public class AuthController {
             cookie.setMaxAge(7 * 24 * 60 * 60); // 7 days
             cookie.setAttribute("SameSite", "Lax");
             response.addCookie(cookie);
-            
+
             return ResponseEntity.ok(new AuthResponse(
-                "Registration successful",
-                savedUser.getId(),
-                savedUser.getEmail(),
-                savedUser.getRole().toString()
-            ));
+                    "Registration successful",
+                    savedUser.getId(),
+                    savedUser.getEmail(),
+                    savedUser.getRole().toString()));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         }
@@ -75,7 +73,7 @@ public class AuthController {
         try {
             String token = authService.login(request.getEmail(), request.getPassword());
             UserModel user = authService.getUserByEmail(request.getEmail());
-            
+
             // Set cookie
             Cookie cookie = new Cookie("jwt", token);
             cookie.setHttpOnly(true);
@@ -84,16 +82,53 @@ public class AuthController {
             cookie.setMaxAge(7 * 24 * 60 * 60); // 7 days
             cookie.setAttribute("SameSite", "Lax");
             response.addCookie(cookie);
-            
+
             return ResponseEntity.ok(new LoginResponse(
-                "Login successful",
-                token,
-                user.getId(),
-                user.getEmail(),
-                user.getName(),
-                user.getRole().toString()
-            ));
+                    "Login successful",
+                    token,
+                    user.getId(),
+                    user.getEmail(),
+                    user.getName(),
+                    user.getRole().toString()));
         } catch (Exception e) {
+            return ResponseEntity.status(401).body(new ErrorResponse(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/admin/login")
+    public ResponseEntity<?> adminLogin(@RequestBody LoginRequest request, HttpServletResponse response) {
+        try {
+            // 1. First verify credentials (this checks password hash)
+            String token = authService.login(request.getEmail(), request.getPassword());
+            System.out.println("Generated token: " + token);
+            System.out.println("Login request for email: " + request.getEmail());
+            System.out.println("Login request for password: " + request.getPassword());
+            // 2. Then fetch user to check role
+            UserModel user = authService.getUserByEmail(request.getEmail());
+
+            // 3. Reject if not an admin
+            if (user == null || user.getRole() != UserRoles.ADMIN) {
+                return ResponseEntity.status(403).body(new ErrorResponse("Access denied: Not an admin"));
+            }
+
+            Cookie cookie = new Cookie("jwt", token);
+            cookie.setHttpOnly(true);
+            cookie.setSecure(false);
+            cookie.setPath("/");
+            cookie.setMaxAge(7 * 24 * 60 * 60);
+            cookie.setAttribute("SameSite", "Lax");
+            response.addCookie(cookie);
+            System.out.println(cookie.getName() + " cookie set with value: " + cookie.getValue());
+
+            return ResponseEntity.ok(new LoginResponse(
+                    "Admin login successful",
+                    token,
+                    user.getId(),
+                    user.getEmail(),
+                    user.getName(),
+                    user.getRole().toString()));
+        } catch (Exception e) {
+            System.out.println("Admin login failed: " + e.getMessage());
             return ResponseEntity.status(401).body(new ErrorResponse(e.getMessage()));
         }
     }
@@ -107,7 +142,7 @@ public class AuthController {
         cookie.setPath("/");
         cookie.setMaxAge(0); // Delete the cookie
         response.addCookie(cookie);
-        
+
         return ResponseEntity.ok(new MessageResponse("Logout successful"));
     }
 
@@ -118,7 +153,7 @@ public class AuthController {
             if (token == null || token.isEmpty()) {
                 return ResponseEntity.status(401).body(new ErrorResponse("No authentication token found"));
             }
-            
+
             // Verify and get user info from token
             // This would use JwtService to decode the token
             System.out.println("Token from cookie: " + token);
@@ -145,30 +180,101 @@ class SignupRequest {
     private String pinCode;
 
     // Getters and Setters
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getPhone() { return phone; }
-    public void setPhone(String phone) { this.phone = phone; }
-    public UserRoles getRole() { return role; }
-    public void setRole(UserRoles role) { this.role = role; }
-    public String getBusinessName() { return businessName; }
-    public void setBusinessName(String businessName) { this.businessName = businessName; }
-    public String getLicenseNumber() { return licenseNumber; }
-    public void setLicenseNumber(String licenseNumber) { this.licenseNumber = licenseNumber; }
-    public String getCompanyName() { return companyName; }
-    public void setCompanyName(String companyName) { this.companyName = companyName; }
-    public String getArea() { return area; }
-    public void setArea(String area) { this.area = area; }
-    public String getCity() { return city; }
-    public void setCity(String city) { this.city = city; }
-    public String getState() { return state; }
-    public void setState(String state) { this.state = state; }
-    public String getPinCode() { return pinCode; }
-    public void setPinCode(String pinCode) { this.pinCode = pinCode; }
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public UserRoles getRole() {
+        return role;
+    }
+
+    public void setRole(UserRoles role) {
+        this.role = role;
+    }
+
+    public String getBusinessName() {
+        return businessName;
+    }
+
+    public void setBusinessName(String businessName) {
+        this.businessName = businessName;
+    }
+
+    public String getLicenseNumber() {
+        return licenseNumber;
+    }
+
+    public void setLicenseNumber(String licenseNumber) {
+        this.licenseNumber = licenseNumber;
+    }
+
+    public String getCompanyName() {
+        return companyName;
+    }
+
+    public void setCompanyName(String companyName) {
+        this.companyName = companyName;
+    }
+
+    public String getArea() {
+        return area;
+    }
+
+    public void setArea(String area) {
+        this.area = area;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
+    }
+
+    public String getPinCode() {
+        return pinCode;
+    }
+
+    public void setPinCode(String pinCode) {
+        this.pinCode = pinCode;
+    }
 }
 
 class LoginRequest {
@@ -176,11 +282,25 @@ class LoginRequest {
     private String password;
     private UserRoles role;
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public String getPassword() { return password; }
-    public UserRoles getRole() { return role; }
-    public void setPassword(String password) { this.password = password; }
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public UserRoles getRole() {
+        return role;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
 }
 
 class LoginResponse {
@@ -201,12 +321,29 @@ class LoginResponse {
     }
 
     // Getters
-    public String getMessage() { return message; }
-    public String getToken() { return token; }
-    public String getUserId() { return userId; }
-    public String getEmail() { return email; }
-    public String getName() { return name; }
-    public String getRole() { return role; }
+    public String getMessage() {
+        return message;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getRole() {
+        return role;
+    }
 }
 
 class AuthResponse {
@@ -223,10 +360,21 @@ class AuthResponse {
     }
 
     // Getters
-    public String getMessage() { return message; }
-    public String getUserId() { return userId; }
-    public String getEmail() { return email; }
-    public String getRole() { return role; }
+    public String getMessage() {
+        return message;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getRole() {
+        return role;
+    }
 }
 
 class ErrorResponse {
@@ -236,7 +384,9 @@ class ErrorResponse {
         this.error = error;
     }
 
-    public String getError() { return error; }
+    public String getError() {
+        return error;
+    }
 }
 
 class MessageResponse {
@@ -246,5 +396,7 @@ class MessageResponse {
         this.message = message;
     }
 
-    public String getMessage() { return message; }
+    public String getMessage() {
+        return message;
+    }
 }

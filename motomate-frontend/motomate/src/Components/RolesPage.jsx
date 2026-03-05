@@ -21,9 +21,12 @@ const RolesPage = ({ setSelectedRole }) => {
         if (typeof setSelectedRole === 'function') {
             setSelectedRole(role);
         }
+        const roleSlug = role.toLowerCase().replace(/\s+/g, '-');
         const isSignup = location.pathname.includes('/signup');
         const base = isSignup ? '/signup' : '/login';
-        navigate(`${base}/${role}`);
+        // Pass the selected role in navigation state so the login/signup
+        // page can initialize its local selectedRole immediately.
+        navigate(`${base}/${roleSlug}`, { state: { selectedRole: role } });
     };
 
     // Animation variants

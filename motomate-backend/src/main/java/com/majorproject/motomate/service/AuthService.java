@@ -26,7 +26,7 @@ public class AuthService {
 
         // Encrypt password
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        
+
         // Save user
         return userRepository.save(user);
     }
@@ -35,15 +35,25 @@ public class AuthService {
         UserModel user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Invalid credentials"));
 
+        System.out.println("=== PASSWORD DEBUG ===");
+        System.out.println("Raw password received: '" + password + "'");
+        System.out.println("Stored hash: '" + user.getPassword() + "'");
+        System.out.println("BCrypt matches: " + passwordEncoder.matches(password, user.getPassword()));
+        System.out.println("Is active: " + user.isActive());
+        System.out.println("=====================");
+
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new RuntimeException("Invalid credentials");
         }
 
         if (!user.isActive()) {
-            throw new RuntimeException("Account is deactivated");
+            throw new RuntimeException("Account is deactivated. Contact support.");
         }
 
-        return jwtService.generateToken(user);
+        System.out.println("User " + email + " authenticated successfully. Generating token...");
+        String token = jwtService.generateToken(user);
+        System.out.println("Generated token for user " + email + ": " + token);
+        return token;
     }
 
     public UserModel getUserByEmail(String email) {

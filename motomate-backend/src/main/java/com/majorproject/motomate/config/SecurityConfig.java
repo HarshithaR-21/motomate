@@ -15,15 +15,17 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                               JwtAuthenticationFilter jwtFilter) throws Exception {
-        http.cors(cors -> {}) // Enable CORS with the CorsConfigurationSource bean
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/**").permitAll() 
-            )
-            // add the JWT filter before Spring’s username/password filter
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-        
+            JwtAuthenticationFilter jwtFilter) throws Exception {
+        http.cors(cors -> {
+        }) // Enable CORS with the CorsConfigurationSource bean
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/**").permitAll() // public auth routes
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/**").permitAll())
+                // add the JWT filter before Spring’s username/password filter
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 
