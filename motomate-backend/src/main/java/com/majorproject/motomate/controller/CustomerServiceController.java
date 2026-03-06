@@ -23,9 +23,9 @@ public class CustomerServiceController {
     public ResponseEntity<?> createService(@RequestBody CustomerServiceModel customerService) {
         Logger logger = Logger.getLogger(CustomerServiceController.class.getName());
         try {
-            logger.info("Attempting to create service: " + customerService);
+            //logger.info("Attempting to create service: " + customerService);
             CustomerServiceModel created = customerServiceService.createService(customerService);
-            logger.info("Successfully created service with ID: " + created.getId());
+            //logger.info("Successfully created service with ID: " + created.getId());
             return new ResponseEntity<>(created, HttpStatus.CREATED);
         } catch (Exception e) {
             logger.severe("Error creating service: " + e.getMessage());

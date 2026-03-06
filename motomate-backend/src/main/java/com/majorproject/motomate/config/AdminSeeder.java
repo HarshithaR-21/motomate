@@ -23,7 +23,7 @@ public void run(String... args) throws Exception {
         admin.setRole(UserRoles.ADMIN);
         admin.setActive(true);
         UserModel saved = userRepository.save(admin);
-        System.out.println("Seeded admin role: " + saved.getRole()); // ← add this
+        System.out.println("Seeded admin role: " + saved.getRole());
         System.out.println("Seeded admin active: " + saved.isActive());
     } else {
         UserModel existing = userRepository.findByEmail(adminEmail).get();

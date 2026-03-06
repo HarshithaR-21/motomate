@@ -154,10 +154,20 @@ public class AuthController {
                 return ResponseEntity.status(401).body(new ErrorResponse("No authentication token found"));
             }
 
-            // Verify and get user info from token
-            // This would use JwtService to decode the token
-            System.out.println("Token from cookie: " + token);
-            return ResponseEntity.ok(new MessageResponse("User info"));
+            String email = authService.getEmailFromToken(token);
+            UserModel user = authService.getUserByEmail(email);
+            if (user == null) {
+            return ResponseEntity.status(404).body(new ErrorResponse("User not found"));
+        }
+
+        return ResponseEntity.ok(new LoginResponse(
+                "User fetched successfully",
+                token,
+                user.getId(),
+                user.getEmail(),
+                user.getName(),
+                user.getRole().toString()
+        ));
         } catch (Exception e) {
             return ResponseEntity.status(401).body(new ErrorResponse("Invalid token"));
         }

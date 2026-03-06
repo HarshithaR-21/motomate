@@ -3,8 +3,6 @@ package com.majorproject.motomate.model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -17,6 +15,7 @@ public class CustomerServiceModel {
     private String id;
     
     // Vehicle Information
+    private String userId;
     private String vehicleType;
     private String selectedVehicle;
     private String brand;
@@ -55,7 +54,7 @@ public class CustomerServiceModel {
     public CustomerServiceModel() {
     }
     
-    public CustomerServiceModel(String id, String vehicleType, String selectedVehicle,
+    public CustomerServiceModel(String id, String userId, String vehicleType, String selectedVehicle,
                                String brand, String model, String fuelType,
                                String vehicleNumber, List<String> selectedServiceIds,
                                Double totalEstimatedPrice, Integer totalEstimatedDuration,
@@ -66,6 +65,7 @@ public class CustomerServiceModel {
                                String customerId, String status,
                                LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
+        this.userId = userId;
         this.vehicleType = vehicleType;
         this.selectedVehicle = selectedVehicle;
         this.brand = brand;

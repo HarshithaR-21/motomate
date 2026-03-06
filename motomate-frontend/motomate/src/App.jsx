@@ -6,6 +6,8 @@ import CustomerDashboard from './pages/Customer/CustomerDashboard'
 import VehicleServices from './pages/Customer/VehicleServices'
 import BookService from './pages/Customer/BookService'
 import Login from './pages/Login pages/Login'
+import AdminDashboard from './pages/Admin/AdminDashboard'
+import ServiceHistory from './pages/Customer/ServiceHistory'
 
 function App() {
   return (
@@ -19,6 +21,8 @@ function App() {
         <Route path="/dashboard/customer" element={<CustomerDashboard />} />
         <Route path="/dashboard/customer/vehicle-services" element={<VehicleServices />} />
         <Route path="/dashboard/customer/vehicle-services/book-service" element={<BookService />} />
+        <Route path='/dashboard/customer/service-history' element = {<ServiceHistory />}/>
+        <Route path='/dashboard/admin' element={<AdminDashboard />} />  
       </Routes>
     </BrowserRouter>
   )

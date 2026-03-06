@@ -1,5 +1,4 @@
 package com.majorproject.motomate.service;
-
 import com.majorproject.motomate.model.UserModel;
 import com.majorproject.motomate.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,6 +64,11 @@ public class AuthService {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
+
+    // If using jjwt (io.jsonwebtoken)
+public String getEmailFromToken(String token) {
+    return jwtService.getEmailFromToken(token);
+}
 
     // Add this method for signup token generation
     public String generateToken(UserModel user) {

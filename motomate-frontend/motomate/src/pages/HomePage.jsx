@@ -64,9 +64,14 @@ const HomePage = () => {
             <a href="#roles" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">User Roles</a>
             <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">About</a>
           </div>
+          <div className='flex gap-3'>
           <Link to="/signup"><button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg">
             Get Started
           </button></Link>
+          <Link to="/login"><button className="bg-linear-to-r from-gray-100 to-gray-200 px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg">
+            Login
+          </button></Link>
+          </div>
         </div>
       </nav >
 
