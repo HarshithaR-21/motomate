@@ -6,6 +6,7 @@ import axios from 'axios'
 import Navigation from '../../Components/Navigation';
 import Footer from '../../Components/Footer';
 import LocationSelector from '../../Components/LocationSelector';
+import { validatePassword } from '../utils/passwordValidation';
 
 const CustomerSignUp = () => {
     const [formData, setFormData] = useState({
@@ -43,15 +44,7 @@ const CustomerSignUp = () => {
         }
     };
 
-    const validatePassword = (password) => {
-        const minLength = password.length >= 8;
-        const hasUpper = /[A-Z]/.test(password);
-        const hasLower = /[a-z]/.test(password);
-        const hasNumber = /\d/.test(password);
-        const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-        return { minLength, hasUpper, hasLower, hasNumber, hasSpecial };
-    };
-
+    //const { minLength, hasUpper, hasLower, hasNumber, hasSpecial } = validatePassword(password);
     const handleSubmit = async (e) => {
         e.preventDefault();
         const newErrors = {};
@@ -201,7 +194,7 @@ const CustomerSignUp = () => {
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                             <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter your phone number"
-                            />
+                            maxLength={10}/>
                             {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
                         </div>
 

@@ -3,6 +3,7 @@ import { ChevronRight, Eye, EyeOff, Car, Wrench, Building2, Truck, ShieldAlert }
 import toast, { Toaster } from 'react-hot-toast';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import Navigation from '../../Components/Navigation';
 
 // ─── Role Configuration ───────────────────────────────────────────────────────
 const ROLE_CONFIG = {
@@ -94,7 +95,7 @@ const ROLE_CONFIG = {
     cardHover: 'hover:border-red-400 hover:bg-red-50',
     css: { primary: '#dc2626', light: '#fef2f2', text: '#b91c1c' },
     apiUrl: 'http://localhost:8080/api/auth/admin/login',
-    dashboardPath: '/admin/dashboard',
+    dashboardPath: '/dashboard/admin',
   },
 };
 
@@ -274,6 +275,7 @@ const Login = () => {
 
   return (
     <>
+      <Navigation />
       <Toaster position="top-right" toastOptions={{ style: { fontSize: '14px' } }} />
       <section className="min-h-screen bg-gray-50 relative z-10">
         {matchedRole

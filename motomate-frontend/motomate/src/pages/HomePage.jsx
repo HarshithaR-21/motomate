@@ -1,8 +1,7 @@
-
-import { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Car, MapPin, Shield, Zap, Wallet, Truck, User, Wrench, Building, Users, ShieldCheck, ChevronRight } from 'lucide-react';
+import { Car, MapPin, Shield, Zap, Wallet, Truck, Wrench, Building, Users, ChevronRight, ArrowRight } from 'lucide-react';
 
 const features = [
   {
@@ -38,7 +37,6 @@ const features = [
 ];
 
 const HomePage = () => {
-
   return (
     <div className="min-h-screen bg-white text-gray-900 overflow-hidden">
       {/* Background Effects */}
@@ -55,49 +53,56 @@ const HomePage = () => {
             <div className="w-10 h-10 bg-linear-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
               <Car size={24} className="text-white" />
             </div>
-            <span className="text-2xl font-bold text-gray-900 tracking-tight">
-              Moto<span className="bg-linear-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">Mate</span>
-            </span>
+            <Link to="/">
+              <span className="text-2xl font-bold text-gray-900 tracking-tight" >
+                Moto<span className="bg-linear-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">Mate</span>
+              </span>
+            </Link>
           </div>
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">Features</a>
+            <a href="#business" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">For Business</a>
             <a href="#roles" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">User Roles</a>
             <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">About</a>
           </div>
           <div className='flex gap-3'>
-          <Link to="/signup"><button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg">
-            Get Started
-          </button></Link>
-          <Link to="/login"><button className="bg-linear-to-r from-gray-100 to-gray-200 px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg">
-            Login
-          </button></Link>
+            <Link to="/signup">
+              <button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg">
+                Get Started
+              </button>
+            </Link>
+            <Link to="/login">
+              <button className="bg-linear-to-r from-gray-100 to-gray-200 px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg">
+                Login
+              </button>
+            </Link>
           </div>
         </div>
-      </nav >
+      </nav>
 
       {/* Hero Section */}
-      < section className="relative z-10 px-6 pt-16 pb-24 mt-8" >
+      <section className="relative z-10 px-6 pt-16 pb-24 mt-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 border border-gray-200 mb-8 animate-fade-in">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 border border-gray-200 mb-8">
               <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
               <span className="text-sm text-gray-600 font-medium">Smart Vehicle Service Platform</span>
             </div>
 
-            <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 leading-tight mb-6 animate-slide-up">
+            <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 leading-tight mb-6">
               Your Vehicle,{' '}
               <span className="bg-linear-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">Serviced</span>
               <br />
               At Your Doorstep
             </h1>
 
-            <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-10 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+            <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-10">
               MotoMate connects you with verified service professionals for doorstep vehicle maintenance,
               emergency roadside assistance, and comprehensive fleet management.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up" style={{ animationDelay: '0.4s' }}>
-              <button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2 group">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2">
                 <a href="#roles">Book a Service</a>
                 <ChevronRight size={20} />
               </button>
@@ -108,7 +113,7 @@ const HomePage = () => {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-20 max-w-4xl mx-auto animate-slide-up" style={{ animationDelay: '0.6s' }}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-20 max-w-4xl mx-auto">
             {[
               { value: "10K+", label: "Services Completed" },
               { value: "500+", label: "Verified Workers" },
@@ -121,17 +126,118 @@ const HomePage = () => {
               </div>
             ))}
           </div>
+
+          {/* ── Business Accounts Section ── */}
+          <div id="business" className="mt-24">
+            <div className="text-center mb-10">
+              <span className="inline-block px-4 py-1.5 rounded-full bg-green-50 border border-green-200 text-green-700 text-sm font-semibold mb-4">
+                For Businesses & Professionals
+              </span>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+                Register Your{' '}
+                <span className="bg-linear-to-r from-green-500 to-green-600 bg-clip-text text-transparent">Business</span>
+              </h2>
+              <p className="text-gray-600 max-w-xl mx-auto">
+                Whether you run a service center or manage a vehicle fleet, MotoMate gives you the tools to scale smarter.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              {/* Service Center Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                viewport={{ once: true }}
+                className="relative group rounded-3xl border border-gray-200 bg-white shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+              >
+                {/* accent bar */}
+                <div className="h-1.5 w-full bg-linear-to-r from-blue-400 to-blue-600" />
+                <div className="p-8">
+                  <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center mb-6">
+                    <Building size={28} className="text-blue-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Service Center</h3>
+                  <p className="text-gray-600 mb-6 leading-relaxed">
+                    List your garage or workshop on MotoMate. Accept bookings, manage mechanics,
+                    set service offerings, and grow your customer base digitally.
+                  </p>
+                  <ul className="space-y-2 mb-8">
+                    {[
+                      "Online booking & scheduling",
+                      "Mechanic workforce management",
+                      "Digital invoices & payment tracking",
+                      "Customer reviews & ratings",
+                    ].map((item, i) => (
+                      <li key={i} className="flex items-center gap-2.5 text-sm text-gray-700">
+                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-xs font-bold">✓</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link to="/signup/service-center">
+                    <button className="w-full bg-linear-to-r from-blue-500 to-blue-600 text-white py-3.5 rounded-xl font-semibold text-base hover:opacity-90 transition-all shadow-md flex items-center justify-center gap-2 group">
+                      Register Service Center
+                      <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </Link>
+                </div>
+              </motion.div>
+
+              {/* Fleet Management Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+                viewport={{ once: true }}
+                className="relative group rounded-3xl border border-gray-200 bg-white shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+              >
+                {/* accent bar */}
+                <div className="h-1.5 w-full bg-linear-to-r from-green-400 to-green-600" />
+                <div className="p-8">
+                  <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mb-6">
+                    <Users size={28} className="text-green-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Fleet Manager</h3>
+                  <p className="text-gray-600 mb-6 leading-relaxed">
+                    Manage your entire vehicle fleet from one dashboard. Schedule bulk maintenance,
+                    track vehicles, and reduce downtime with proactive service alerts.
+                  </p>
+                  <ul className="space-y-2 mb-8">
+                    {[
+                      "Centralized fleet dashboard",
+                      "Bulk service scheduling",
+                      "Real-time vehicle GPS tracking",
+                      "Maintenance history & analytics",
+                    ].map((item, i) => (
+                      <li key={i} className="flex items-center gap-2.5 text-sm text-gray-700">
+                        <span className="w-5 h-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0 text-xs font-bold">✓</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link to="/signup/fleet-manager">
+                    <button className="w-full bg-linear-to-r from-green-500 to-green-600 text-white py-3.5 rounded-xl font-semibold text-base hover:opacity-90 transition-all shadow-md flex items-center justify-center gap-2 group">
+                      Register Fleet Account
+                      <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </Link>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+          {/* ── End Business Section ── */}
         </div>
-      </section >
+      </section>
 
       {/* Features Section */}
-      < section id="features" className="relative z-10 px-6 py-24 bg-gray-50" >
-
+      <section id="features" className="relative z-10 px-6 py-24 bg-gray-50">
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          viewport={{ once: true }} className="max-w-7xl mx-auto"
+          viewport={{ once: true }}
+          className="max-w-7xl mx-auto"
         >
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -140,77 +246,43 @@ const HomePage = () => {
             <p className="text-gray-600 text-lg max-w-2xl mx-auto p-4">
               Everything you need for seamless vehicle maintenance in one integrated platform.
             </p>
-            <div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {features.map((feature, idx) => (
-                  <div
-                    key={idx}
-                    className="group p-8 rounded-2xl bg-white border border-gray-200 hover:border-blue-300 transition-all duration-500 hover:shadow-lg hover:-translate-y-1"
-                  >
-                    <div className="w-14 h-14 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 flex items-center justify-center mb-6 text-white group-hover:scale-110 transition-transform duration-300">
-                      <feature.icon size={28} />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-3">{feature.title}</h3>
-                    <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {features.map((feature, idx) => (
+                <div
+                  key={idx}
+                  className="group p-8 rounded-2xl bg-white border border-gray-200 hover:border-blue-300 transition-all duration-500 hover:shadow-lg hover:-translate-y-1"
+                >
+                  <div className="w-14 h-14 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 flex items-center justify-center mb-6 text-white group-hover:scale-110 transition-transform duration-300">
+                    <feature.icon size={28} />
                   </div>
-                ))}
-              </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3">{feature.title}</h3>
+                  <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                </div>
+              ))}
             </div>
           </div>
         </motion.div>
-      </section >
+      </section>
 
       {/* User Roles Section */}
-      < section id="roles" className="relative z-10 px-6 py-24" >
-          <motion.div
+      <section id="roles" className="relative z-10 px-6 py-24">
+        <motion.div
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          viewport={{ once: true }} 
+          viewport={{ once: true }}
           className="max-w-7xl mx-auto"
         >
           <div className="text-center mb-16">
-            <h2
-              className="text-4xl md:text-5xl font-bold mb-4"
-            >
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
               Choose Your{" "}
-              <span className="bg-linear-to-r from-green-500 to-green-600 bg-clip-text text-transparent">
-                Role
-              </span>
+              <span className="bg-linear-to-r from-green-500 to-green-600 bg-clip-text text-transparent">Role</span>
             </h2>
-
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
               Sign up as a customer, worker, service center owner, fleet manager, or admin.
             </p>
           </div>
 
-          {/* <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">
-            {userRoles.map((role, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleNavigation(role.title)}
-                className={`p-6 rounded-2xl border transition-all duration-300 text-left group ${activeRole === role.title
-                  ? 'bg-linear-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg'
-                  : 'bg-white border-gray-200 hover:border-blue-300 text-gray-900'
-                  }`}
-              >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${activeRole === role.title
-                  ? 'bg-white/20'
-                  : 'bg-blue-50 text-blue-600'
-                  }`}>
-                  <role.icon size={24} />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{role.title}</h3>
-                <p className={`text-sm ${activeRole === role.title ? 'text-white/80' : 'text-gray-600'
-                  }`}>
-                  {role.description}
-                </p>
-              </button>
-            ))}
-          </div> */}
-
-          {/* Login/Signup CTA */}
           <div className="bg-white border border-gray-200 rounded-3xl p-10 md:p-14 text-center max-w-3xl mx-auto shadow-lg">
             <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
               Ready to Get Started?
@@ -219,19 +291,23 @@ const HomePage = () => {
               Join MotoMate today and experience hassle-free vehicle servicing.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/signup"><button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg">
-                Sign Up Now
-              </button></Link>
-              <Link to="/login"><button className="bg-gray-100 text-gray-900 px-8 py-4 rounded-xl font-semibold text-lg border border-gray-300 hover:bg-gray-200 transition-colors">
-                Login
-              </button></Link>
+              <Link to="/signup">
+                <button className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all shadow-lg">
+                  Sign Up Now
+                </button>
+              </Link>
+              <Link to="/login">
+                <button className="bg-gray-100 text-gray-900 px-8 py-4 rounded-xl font-semibold text-lg border border-gray-300 hover:bg-gray-200 transition-colors">
+                  Login
+                </button>
+              </Link>
             </div>
           </div>
         </motion.div>
-      </section >
+      </section>
 
       {/* About Section */}
-      < section id="about" className="relative z-10 px-6 py-24 bg-gray-50" >
+      <section id="about" className="relative z-10 px-6 py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
@@ -291,10 +367,10 @@ const HomePage = () => {
             </div>
           </div>
         </div>
-      </section >
+      </section>
 
       {/* Footer */}
-      < footer className="relative z-10 px-6 py-12 border-t border-gray-200 bg-white" >
+      <footer className="relative z-10 px-6 py-12 border-t border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
@@ -313,8 +389,8 @@ const HomePage = () => {
             </div>
           </div>
         </div>
-      </footer >
-    </div >
+      </footer>
+    </div>
   );
 };
 

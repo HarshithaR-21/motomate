@@ -22,6 +22,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll() // public auth routes
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers(
+                                "/api/v1/service-centers/register",
+                                "/api/v1/service-centers/check-email",
+                                "/api/v1/fleet-managers/register",
+                                "/api/v1/fleet-managers/check-email")
+                        .permitAll()
                         .requestMatchers("/**").permitAll())
                 // add the JWT filter before Spring’s username/password filter
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
