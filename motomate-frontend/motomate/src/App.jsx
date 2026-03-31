@@ -10,6 +10,8 @@ import ServiceHistory from './pages/Customer/ServiceHistory'
 import ServiceCenterSignup from './pages/Signup pages/ServiceCenterSignup'
 import FleetManagerSignup from './pages/Signup pages/FleetManagerSignUp'
 import AdminDashboard from './pages/Admin/pages/AdminDashboard'
+import { FleetManagerVerifications, ServiceCenterVerifications } from './pages/Admin/pages/VerificationsPage'
+import IssuesPage from './pages/Admin/pages/IssuesPage'
 
 function App() {
   return (
@@ -29,7 +31,10 @@ function App() {
         <Route path="/dashboard/customer/vehicle-services/book-service" element={<BookService />} />
         <Route path='/dashboard/customer/service-history' element={<ServiceHistory />} />
         <Route path='/dashboard/admin' element={<AdminDashboard />} />
-        
+        <Route path='/admin/verifications/service-centers' element={<ServiceCenterVerifications />} />
+        <Route path='/admin/verifications/fleet-managers' element={<FleetManagerVerifications />} />
+        <Route path='/admin/issues' element={<IssuesPage />} />
+
       </Routes>
     </BrowserRouter>
   )

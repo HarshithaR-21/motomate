@@ -66,7 +66,7 @@ public class FileUploadService {
         Path destination = directory.resolve(fileName);
         Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
 
-        String relativePath = Paths.get(registrationId, fileName).toString();
+        String relativePath = Paths.get(registrationId, fileName).toString().replace("\\", "/");
         log.info("Saved document [{}] → {}", docType, relativePath);
         return relativePath;
     }

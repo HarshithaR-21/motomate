@@ -2,35 +2,44 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, ShieldCheck, MessageSquare,
   Wrench, BarChart2, FileBarChart, LogOut, Car,
-  Building2, Users, ChevronRight, X
+  Building2, Users, ChevronRight, X, UserCog, Truck
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   {
     section: 'Overview',
     links: [
-      { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
+      { to: '/admin',       label: 'Dashboard', icon: LayoutDashboard, end: true },
+      { to: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
     ],
   },
   {
     section: 'Verifications',
     links: [
       { to: '/admin/verifications/service-centers', label: 'Service Centers', icon: Building2 },
-      { to: '/admin/verifications/fleet-managers',  label: 'Fleet Managers',  icon: Users },
+      { to: '/admin/verifications/fleet-managers',  label: 'Fleet Managers',  icon: Truck },
     ],
   },
   {
     section: 'Operations',
     links: [
-      { to: '/admin/queries',   label: 'User Queries',     icon: MessageSquare },
-      { to: '/admin/services',  label: 'Ongoing Services', icon: Wrench },
+      { to: '/admin/issues',   label: 'Issues',          icon: MessageSquare },
+      { to: '/admin/services', label: 'Bookings',        icon: Wrench },
     ],
   },
   {
-    section: 'Insights',
+    section: 'Data Management',
     links: [
-      { to: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
-      { to: '/admin/reports',   label: 'Reports',   icon: FileBarChart },
+      { to: '/admin/users',           label: 'All Users',       icon: Users },
+      { to: '/admin/service-centers', label: 'Service Centers', icon: Building2 },
+      { to: '/admin/fleet-managers',  label: 'Fleet Managers',  icon: Truck },
+      { to: '/admin/workers',         label: 'Workers',         icon: UserCog },
+    ],
+  },
+  {
+    section: 'Reports',
+    links: [
+      { to: '/admin/reports', label: 'Reports', icon: FileBarChart },
     ],
   },
 ];
@@ -38,12 +47,8 @@ const NAV_ITEMS = [
 const Sidebar = ({ mobileOpen, onClose, onLogout }) => {
   return (
     <>
-      {/* Mobile overlay */}
       {mobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
-          onClick={onClose}
-        />
+        <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={onClose} />
       )}
 
       <aside
@@ -72,7 +77,7 @@ const Sidebar = ({ mobileOpen, onClose, onLogout }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-5 scrollbar-hide">
+        <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-4 scrollbar-hide">
           {NAV_ITEMS.map(({ section, links }) => (
             <div key={section}>
               <p className="text-red-300/70 text-[10px] font-bold uppercase tracking-widest px-3 mb-1.5">
@@ -95,9 +100,9 @@ const Sidebar = ({ mobileOpen, onClose, onLogout }) => {
                   >
                     {({ isActive }) => (
                       <>
-                        <Icon size={17} className={isActive ? 'text-red-600' : 'text-red-200 group-hover:text-white'} />
-                        <span className="flex-1">{label}</span>
-                        {isActive && <ChevronRight size={14} className="text-red-400" />}
+                        <Icon size={16} className={isActive ? 'text-red-600' : 'text-red-200 group-hover:text-white'} />
+                        <span className="flex-1 text-[13px]">{label}</span>
+                        {isActive && <ChevronRight size={13} className="text-red-400" />}
                       </>
                     )}
                   </NavLink>
@@ -113,7 +118,7 @@ const Sidebar = ({ mobileOpen, onClose, onLogout }) => {
             onClick={onLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-200 hover:bg-white/15 hover:text-white transition-all text-sm font-medium group"
           >
-            <LogOut size={17} className="group-hover:text-white transition-colors" />
+            <LogOut size={16} className="group-hover:text-white transition-colors" />
             Sign Out
           </button>
         </div>

@@ -84,14 +84,14 @@ export const StatusBadge = ({ status }) => {
 // ── Stat Card ───────────────────────────────────────────────────
 export const StatCard = ({ icon: Icon, label, value, sub, accent = 'red', loading }) => {
   const accents = {
-    red:    'bg-red-500 text-white',
+    red:    'bg-red-400 text-white',
     green:  'bg-green-500 text-white',
     blue:   'bg-blue-500 text-white',
     amber:  'bg-amber-500 text-white',
     indigo: 'bg-indigo-500 text-white',
   };
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-start gap-4 hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 flex items-start gap-4 hover:shadow-md transition-shadow">
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${accents[accent] || accents.red}`}>
         <Icon size={22} />
       </div>

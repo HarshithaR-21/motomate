@@ -30,7 +30,7 @@ public class EmailNotificationService {
     @Value("${app.admin.name}")
     private String adminName;
 
-    @Value("${spring.mail.username}")
+    @Value("${app.mail.from}")
     private String senderEmail;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ public class EmailNotificationService {
             log.info("Admin alert sent to {} for application id={}", adminEmail, reg.getId());
 
         } catch (MessagingException e) {
-            log.error("Failed to send admin alert for application id={}: {}", reg.getId(), e.getMessage());
+            log.error("Failed to send admin alert for application id={}", reg.getId(), e);
         }
     }
 
@@ -82,7 +82,7 @@ public class EmailNotificationService {
             log.info("Owner confirmation sent to {} for application id={}", reg.getEmail(), reg.getId());
 
         } catch (MessagingException e) {
-            log.error("Failed to send owner confirmation to {}: {}", reg.getEmail(), e.getMessage());
+            log.error("Failed to send owner confirmation to {}", reg.getEmail(), e);
         }
     }
 
@@ -212,7 +212,7 @@ public class EmailNotificationService {
             log.info("Admin fleet alert sent to {} for application id={}", adminEmail, reg.getId());
 
         } catch (MessagingException e) {
-            log.error("Failed to send admin fleet alert for id={}: {}", reg.getId(), e.getMessage());
+            log.error("Failed to send admin fleet alert for id={}", reg.getId(), e);
         }
     }
 
@@ -235,8 +235,63 @@ public class EmailNotificationService {
             log.info("Fleet confirmation sent to {} for id={}", reg.getEmail(), reg.getId());
 
         } catch (MessagingException e) {
-            log.error("Failed to send fleet confirmation to {}: {}", reg.getEmail(), e.getMessage());
+            log.error("Failed to send fleet confirmation to {}", reg.getEmail(), e);
         }
+    }
+
+    @Async
+    public void sendApprovalEmail(String recipientEmail, String displayName, boolean approved, String remarks) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(senderEmail);
+            helper.setTo(recipientEmail);
+            helper.setSubject(approved
+                ? "✅ Your MotoMate Application Has Been Approved"
+                : "❌ Your MotoMate Application Has Been Rejected");
+            helper.setText(buildApprovalHtml(displayName, approved, remarks), true);
+
+            mailSender.send(message);
+            log.info("Approval email sent to {} (approved={})", recipientEmail, approved);
+
+        } catch (MessagingException e) {
+            log.error("Failed to send approval email to {}", recipientEmail, e);
+        }
+    }
+
+    private String buildApprovalHtml(String displayName, boolean approved, String remarks) {
+        String statusText = approved ? "Approved" : "Rejected";
+        String headerEmoji = approved ? "✅" : "❌";
+        String actionText = approved
+            ? "Congratulations! Your application has been approved and you can now access MotoMate services."
+            : "We are sorry to inform you that your application has been rejected.";
+
+        return String.format(
+            "<!DOCTYPE html>" +
+            "<html><head><style>" +
+            "body { font-family: Arial, sans-serif; color: #333; }" +
+            " .card { background: #f9fafb; border-radius: 12px; padding: 24px; max-width: 600px; margin: auto; }" +
+            " h2 { color: #1d4ed8; }" +
+            " .badge { display: inline-block; padding: 8px 14px; border-radius: 999px; font-weight: bold; background: %s; color: %s; }" +
+            " .note { margin-top: 16px; padding: 16px; background: #f3f4f6; border-radius: 10px; font-size: 14px; }" +
+            "</style></head><body><div class=\"card\">" +
+            "<h2>%s Application %s</h2>" +
+            "<p>Hi <strong>%s</strong>,</p>" +
+            "<div class=\"badge\">%s</div>" +
+            "<p style=\"margin-top:16px; font-size:15px; line-height:1.6;\">%s</p>" +
+            "<div class=\"note\"><strong>Remarks:</strong> %s</div>" +
+            "<p style=\"margin-top:20px; font-size:13px; color:#6b7280;\">If you have questions, please contact support@motomate.com.</p>" +
+            "</div></body></html>",
+            approved ? "#d1fae5" : "#fee2e2",
+            approved ? "#065f46" : "#991b1b",
+            headerEmoji,
+            statusText,
+            displayName,
+            statusText,
+            actionText,
+            safe(remarks == null ? "No additional remarks provided." : remarks)
+        );
     }
 
     // =========================================================================

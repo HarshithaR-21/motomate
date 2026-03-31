@@ -17,16 +17,22 @@ const RolesPage = ({ setSelectedRole }) => {
     ];
 
     const handleRoleSelect = (role) => {
-        role = role.toLowerCase();
+        const normalizedRole = role.toLowerCase();
         if (typeof setSelectedRole === 'function') {
-            setSelectedRole(role);
+            setSelectedRole(normalizedRole);
         }
-        const roleSlug = role.toLowerCase().replace(/\s+/g, '-');
+        const loginSlug = normalizedRole.replace(/\s+/g, '-');
+        const signupSlug = role === 'Service Center Owner'
+            ? 'service-center'
+            : role === 'Fleet Manager'
+                ? 'fleet-manager'
+                : loginSlug;
         const isSignup = location.pathname.includes('/signup');
         const base = isSignup ? '/signup' : '/login';
+        const targetSlug = isSignup ? signupSlug : loginSlug;
         // Pass the selected role in navigation state so the login/signup
         // page can initialize its local selectedRole immediately.
-        navigate(`${base}/${roleSlug}`, { state: { selectedRole: role } });
+        navigate(`${base}/${targetSlug}`, { state: { selectedRole: role } });
     };
 
     // Animation variants

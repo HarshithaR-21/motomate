@@ -102,6 +102,13 @@ const ROLE_CONFIG = {
 const ROLES = Object.keys(ROLE_CONFIG);
 
 // ─── Login Form ────────────────────────────────────────────────────────────
+const getRoleSignUpPath = (role) => {
+  if (!role) return '/signup';
+  if (role === 'Service Center Owner') return '/signup/service-center';
+  if (role === 'Fleet Manager') return '/signup/fleet-manager';
+  return '/signup';
+};
+
 const LoginForm = ({ role }) => {
   const cfg = ROLE_CONFIG[role];
   const Icon = cfg.icon;
@@ -248,7 +255,7 @@ const LoginForm = ({ role }) => {
         {role !== 'Admin' && (
           <p className="text-sm text-gray-500">
             Don't have an account?{' '}
-            <Link to="/signup" className="font-medium" style={{ color: cfg.css.primary }}>
+            <Link to={getRoleSignUpPath(role)} className="font-medium" style={{ color: cfg.css.primary }}>
               Sign Up
             </Link>
           </p>

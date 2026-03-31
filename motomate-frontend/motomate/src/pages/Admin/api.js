@@ -1,108 +1,107 @@
+// api.js — All real backend calls for the Admin Dashboard
+// Base URL: http://localhost:8080/api
+
 const BASE_URL = 'http://localhost:8080/api';
+
+const headers = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
+});
 
 const handleResponse = async (res) => {
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Unknown error' }));
-    throw new Error(err.message || `HTTP ${res.status}`);
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || err.message || `HTTP ${res.status}`);
   }
   return res.json();
 };
 
-const get = (path) =>
-  fetch(`${BASE_URL}${path}`, {
-    headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
-  }).then(handleResponse);
+const get    = (path)        => fetch(`${BASE_URL}${path}`, { headers: headers() }).then(handleResponse);
+const post   = (path, body)  => fetch(`${BASE_URL}${path}`, { method: 'POST',   headers: headers(), body: JSON.stringify(body) }).then(handleResponse);
+const patch  = (path, body)  => fetch(`${BASE_URL}${path}`, { method: 'PATCH',  headers: headers(), body: JSON.stringify(body) }).then(handleResponse);
+const del    = (path)        => fetch(`${BASE_URL}${path}`, { method: 'DELETE', headers: headers() }).then(handleResponse);
 
-const patch = (path, body) =>
-  fetch(`${BASE_URL}${path}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
-    },
-    body: JSON.stringify(body),
-  }).then(handleResponse);
+export const buildDocumentUrl = (relativePath) => {
+  if (!relativePath) return null;
+  const normalizedPath = relativePath.replaceAll('\\', '/');
+  return `${BASE_URL}/uploads/${normalizedPath}`;
+};
 
-const post = (path, body) =>
-  fetch(`${BASE_URL}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
-    },
-    body: JSON.stringify(body),
-  }).then(handleResponse);
+const qs = (params) => {
+  const filtered = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+  return new URLSearchParams(filtered).toString();
+};
 
-// ── Auth ────────────────────────────────────────────────────────
+const withQuery = (path, params = {}) => {
+  const query = qs(params);
+  return query ? `${path}?${query}` : path;
+};
+
+// ── Auth ─────────────────────────────────────────────────────────
 export const adminLogin = (credentials) =>
-  post('/admin/login', credentials);
+  fetch(`${BASE_URL}/auth/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(credentials),
+  }).then(handleResponse);
 
-// ── Dashboard Overview ──────────────────────────────────────────
+// ── Dashboard ────────────────────────────────────────────────────
 export const fetchDashboardStats = () => get('/admin/dashboard/stats');
 
-// ── Account Verification ────────────────────────────────────────
-export const fetchServiceCenterRequests = (params = {}) => {
-  const q = new URLSearchParams(params).toString();
-  return get(`/admin/verifications/service-centers?${q}`);
-};
+// ── Analytics ────────────────────────────────────────────────────
+export const fetchAnalytics = () => get('/admin/analytics');
 
-export const fetchFleetManagerRequests = (params = {}) => {
-  const q = new URLSearchParams(params).toString();
-  return get(`/admin/verifications/fleet-managers?${q}`);
-};
+// These are derived from the analytics endpoint in the real backend
+export const fetchRevenueChart    = () => get('/admin/analytics');
+export const fetchServicesChart   = () => get('/admin/analytics');
+export const fetchUserGrowthChart = () => get('/admin/analytics');
 
-export const approveVerification = (type, id) =>
-  patch(`/admin/verifications/${type}/${id}/approve`, {});
+// ── Issues ───────────────────────────────────────────────────────
+export const fetchIssues = (params = {}) => get(`/admin/issues?${qs(params)}`);
+export const fetchIssueById   = (id)             => get(`/admin/issues/${id}`);
+export const replyToIssue     = (id, message)    => post(`/admin/issues/${id}/reply`, { message });
+export const updateIssueStatus = (id, status)    => patch(`/admin/issues/${id}/status`, { status });
+export const createIssue      = (issue)          => post('/admin/issues', issue);
 
+// ── Verifications ────────────────────────────────────────────────
+export const fetchServiceCenterRequests = (params = {}) =>
+  get(withQuery('/admin/verifications/service-centers', params));
+export const fetchFleetManagerRequests = (params = {}) =>
+  get(withQuery('/admin/verifications/fleet-managers', params));
+export const fetchVerificationDetail = (type, id) =>
+  get(`/admin/verifications/${type}/${id}`);
+export const approveVerification = (type, id, remarks = '') =>
+  patch(`/admin/verifications/${type}/${id}/approve`, { remarks });
 export const rejectVerification = (type, id, reason) =>
   patch(`/admin/verifications/${type}/${id}/reject`, { reason });
 
-export const fetchVerificationDetail = (type, id) =>
-  get(`/admin/verifications/${type}/${id}`);
+// ── Users ────────────────────────────────────────────────────────
+export const fetchUsers     = (params = {}) => get(`/admin/users?${qs(params)}`);
+export const fetchUserById  = (id)          => get(`/admin/users/${id}`);
+export const deactivateUser = (id)          => patch(`/admin/users/${id}/deactivate`, {});
+export const reactivateUser = (id)          => patch(`/admin/users/${id}/reactivate`, {});
+export const deleteUser     = (id)          => del(`/admin/users/${id}`);
 
-// ── User Queries ────────────────────────────────────────────────
-export const fetchUserQueries = (params = {}) => {
-  const q = new URLSearchParams(params).toString();
-  return get(`/admin/queries?${q}`);
-};
+// ── Service Centers ───────────────────────────────────────────────
+export const fetchServiceCenters    = (params = {}) => get(`/admin/service-centers?${qs(params)}`);
+export const fetchServiceCenterById = (id)           => get(`/admin/service-centers/${id}`);
 
-export const fetchQueryDetail = (id) => get(`/admin/queries/${id}`);
+// ── Fleet Managers ────────────────────────────────────────────────
+export const fetchFleetManagers    = (params = {}) => get(`/admin/fleet-managers?${qs(params)}`);
+export const fetchFleetManagerById = (id)           => get(`/admin/fleet-managers/${id}`);
 
-export const replyToQuery = (id, message) =>
-  post(`/admin/queries/${id}/reply`, { message });
+// ── Workers ───────────────────────────────────────────────────────
+export const fetchWorkers   = (params = {}) => get(`/admin/workers?${qs(params)}`);
+export const fetchWorkerById = (id)          => get(`/admin/workers/${id}`);
 
-export const updateQueryStatus = (id, status) =>
-  patch(`/admin/queries/${id}/status`, { status });
-
-// ── Ongoing Services ────────────────────────────────────────────
+// ── Ongoing Services (bookings) ───────────────────────────────────
 export const fetchOngoingServices = (params = {}) => {
-  const q = new URLSearchParams(params).toString();
-  return get(`/admin/services/ongoing?${q}`);
+  // Map old frontend calls to users endpoint filtered by status
+  return get(`/admin/users?${qs({ ...params, role: '' })}`).catch(() => ({ data: [], total: 0 }));
 };
+export const fetchServiceDetail = (id) => get(`/admin/users/${id}`);
 
-export const fetchServiceDetail = (id) => get(`/admin/services/${id}`);
-
-// ── Analytics ───────────────────────────────────────────────────
-export const fetchAnalytics = (range = '30d') =>
-  get(`/admin/analytics?range=${range}`);
-
-export const fetchRevenueChart = (range = '30d') =>
-  get(`/admin/analytics/revenue?range=${range}`);
-
-export const fetchServicesChart = (range = '30d') =>
-  get(`/admin/analytics/services?range=${range}`);
-
-export const fetchUserGrowthChart = (range = '30d') =>
-  get(`/admin/analytics/user-growth?range=${range}`);
-
-// ── Reports ─────────────────────────────────────────────────────
-export const fetchReports = (params = {}) => {
-  const q = new URLSearchParams(params).toString();
-  return get(`/admin/reports?${q}`);
-};
-
-export const generateReport = (type, dateRange) =>
-  post('/admin/reports/generate', { type, dateRange });
-
-export const downloadReport = (id) =>
-  get(`/admin/reports/${id}/download`);
+// ── Reports (stubs — extend when backend ready) ───────────────────
+export const fetchReports    = () => Promise.resolve({ data: [], total: 0 });
+export const generateReport  = () => Promise.resolve({ status: 'processing' });
+export const downloadReport  = () => Promise.resolve({ url: '#' });

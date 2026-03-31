@@ -14,7 +14,7 @@ public class AdminSeeder implements CommandLineRunner {
     @Autowired private PasswordEncoder passwordEncoder;
     @Override
 public void run(String... args) throws Exception {
-    String adminEmail = "admin@motomate.com";
+    String adminEmail = "motomate350@gmail.com";
     if (userRepository.findByEmail(adminEmail).isEmpty()) {
         UserModel admin = new UserModel();
         admin.setName("Admin");
