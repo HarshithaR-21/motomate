@@ -52,8 +52,11 @@ public class AdminService {
         stats.put("pendingFleetManagers",   pendingFM);
 
         // Approved counts
-        stats.put("approvedServiceCenters", serviceCenterRepo.findByApprovalStatus(ApprovalStatus.APPROVED).size());
-        stats.put("approvedFleetManagers",  fleetManagerRepo.findByApprovalStatus(ApprovalStatus.APPROVED).size());
+        long approvedServiceCenterCount = serviceCenterRepo.findByApprovalStatus(ApprovalStatus.APPROVED).size();
+        long approvedFleetManagerCount  = fleetManagerRepo.findByApprovalStatus(ApprovalStatus.APPROVED).size();
+
+        stats.put("approvedServiceCenters", approvedServiceCenterCount);
+        stats.put("approvedFleetManagers",  approvedFleetManagerCount);
 
         // Bookings / Services
         long totalBookings = customerServiceRepo.count();
@@ -166,12 +169,23 @@ public class AdminService {
     }
 
     private List<Map<String, Object>> buildUserRolesDistribution() {
+        long approvedServiceCenterCount = serviceCenterRepo.findByApprovalStatus(ApprovalStatus.APPROVED).size();
+        long approvedFleetManagerCount  = fleetManagerRepo.findByApprovalStatus(ApprovalStatus.APPROVED).size();
+
         List<Map<String, Object>> result = new ArrayList<>();
         for (UserRoles role : UserRoles.values()) {
             if (role == UserRoles.ADMIN) continue;
+            long roleCount = userRepository.countByRole(role);
+
+            if (role == UserRoles.SERVICE_CENTER_OWNER) {
+                roleCount = Math.max(roleCount, approvedServiceCenterCount);
+            } else if (role == UserRoles.FLEET_MANAGER) {
+                roleCount = Math.max(roleCount, approvedFleetManagerCount);
+            }
+
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("name",  role.name().replace("_", " "));
-            item.put("value", userRepository.countByRole(role));
+            item.put("value", roleCount);
             result.add(item);
         }
         return result;

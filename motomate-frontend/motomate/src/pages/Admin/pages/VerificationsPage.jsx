@@ -13,6 +13,7 @@ import {
   SectionHeader, Table, Pagination, StatusBadge,
   FilterBar, Modal, PageLoader, ErrorBlock, DetailRow, Spinner, Card
 } from '../components/UI';
+import Header from '../components/Header';
 
 /* ── Shared verification logic ──────────────────────────────── */
 const normalizeStatus = (status) => String(status || '').trim().toLowerCase();
@@ -146,6 +147,7 @@ const VerificationDetailModal = ({ open, onClose, type, itemId, onAction }) => {
         <p className="text-red-500 text-sm">{detail.error}</p>
       ) : (
         <div className="space-y-5">
+          <Header />
           {/* Header */}
           <div className="flex items-center gap-4 p-4 bg-red-50 rounded-xl">
             <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
@@ -282,12 +284,14 @@ const VerificationHeader = ({ title, subtitle, activeView }) => {
   ];
 
   return (
+    <div>
+      <Header />
     <div className="relative overflow-hidden rounded-4xl border border-red-100 bg-white/95 p-6 shadow-[0_30px_90px_rgba(220,38,38,0.08)] mb-8">
       <div className="absolute -right-10 top-8 h-40 w-40 rounded-full bg-red-100 opacity-50 blur-3xl pointer-events-none" />
       <div className="absolute -left-10 bottom-8 h-32 w-32 rounded-full bg-red-200 opacity-25 blur-3xl pointer-events-none" />
       <div className="relative grid gap-5 lg:grid-cols-[1.6fr_1fr] lg:items-center">
+        
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-700">Admin Verifications</p>
           <h1 className="mt-3 text-3xl font-bold text-gray-950">{title}</h1>
           <p className="mt-2 max-w-2xl text-sm text-gray-600 leading-6">{subtitle}</p>
         </div>
@@ -303,6 +307,7 @@ const VerificationHeader = ({ title, subtitle, activeView }) => {
           ))}
         </div>
       </div>
+    </div>
     </div>
   );
 };

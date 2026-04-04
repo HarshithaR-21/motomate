@@ -77,7 +77,7 @@ const ROLE_CONFIG = {
     cardHover: 'hover:border-orange-400 hover:bg-orange-50',
     css: { primary: '#f97316', light: '#fff7ed', text: '#c2410c' },
     apiUrl: 'http://localhost:8080/api/auth/login',
-    dashboardPath: '/dashboard/fleet-manager',
+    dashboardPath: '/dashboard/fleet',
   },
   Admin: {
     icon: ShieldAlert,
