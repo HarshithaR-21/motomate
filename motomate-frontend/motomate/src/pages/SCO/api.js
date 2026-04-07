@@ -50,3 +50,8 @@ export const acceptRequest      = (ownerId, reqId)            => patch(`/sco/${o
 export const assignWorker       = (ownerId, reqId, workerId)  => patch(`/sco/${ownerId}/requests/${reqId}/assign`, { workerId });
 export const completeRequest    = (ownerId, reqId)            => patch(`/sco/${ownerId}/requests/${reqId}/complete`);
 export const updateReqStatus    = (ownerId, reqId, status)    => patch(`/sco/${ownerId}/requests/${reqId}/status`, { status });
+// Suggested workers (skill-matched, sorted by match score)
+export const getSuggestedWorkers = (ownerId, serviceIds = '') => {
+  const qs = serviceIds ? `?serviceIds=${encodeURIComponent(serviceIds)}` : '';
+  return get(`/services/centers/${ownerId}/suggested-workers${qs}`);
+};

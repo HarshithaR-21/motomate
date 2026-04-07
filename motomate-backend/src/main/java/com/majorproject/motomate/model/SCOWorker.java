@@ -10,6 +10,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * A worker registered under a service center.
@@ -33,8 +34,12 @@ public class SCOWorker {
     private String role;              // e.g. MECHANIC, FUEL_DELIVERY, ELECTRICIAN, GENERAL
     private String availability;      // AVAILABLE | BUSY | OFF_DUTY
 
+    // Skills: predefined tags matching service categories
+    // e.g. ENGINE, TYRES, ELECTRICAL, AC, BODY_WORK, BRAKES, GENERAL_SERVICE, OIL_CHANGE
+    private List<String> skills;
+
     private Integer completedJobs;
-private Double rating;
+    private Double rating;
     
     @Builder.Default// average rating 0-5
     private boolean active = true;

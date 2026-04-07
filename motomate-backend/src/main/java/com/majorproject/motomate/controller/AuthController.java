@@ -72,24 +72,33 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
         try {
             String token = authService.login(request.getEmail(), request.getPassword());
-            UserModel user = authService.getUserByEmail(request.getEmail());
 
-            // Set cookie
+            // Get user details from whichever collection they exist in
+            String email = request.getEmail();
+            String id, name, role;
+
+            // Try UserModel first
+            try {
+                UserModel user = authService.getUserByEmail(email);
+                id = user.getId();
+                name = user.getName();
+                role = user.getRole().toString();
+            } catch (Exception e) {
+                // Fall back to ServiceCenter or FleetManager
+                id = authService.getIdByEmail(email);
+                name = authService.getNameByEmail(email);
+                role = authService.getRoleByEmail(email);
+            }
+
             Cookie cookie = new Cookie("jwt", token);
             cookie.setHttpOnly(true);
-            cookie.setSecure(false); // Set to true in production with HTTPS
+            cookie.setSecure(false);
             cookie.setPath("/");
-            cookie.setMaxAge(7 * 24 * 60 * 60); // 7 days
+            cookie.setMaxAge(7 * 24 * 60 * 60);
             cookie.setAttribute("SameSite", "Lax");
             response.addCookie(cookie);
 
-            return ResponseEntity.ok(new LoginResponse(
-                    "Login successful",
-                    token,
-                    user.getId(),
-                    user.getEmail(),
-                    user.getName(),
-                    user.getRole().toString()));
+            return ResponseEntity.ok(new LoginResponse("Login successful", token, id, email, name, role));
         } catch (Exception e) {
             return ResponseEntity.status(401).body(new ErrorResponse(e.getMessage()));
         }
@@ -155,19 +164,28 @@ public class AuthController {
             }
 
             String email = authService.getEmailFromToken(token);
-            UserModel user = authService.getUserByEmail(email);
-            if (user == null) {
-            return ResponseEntity.status(404).body(new ErrorResponse("User not found"));
-        }
+            String id, name, role;
 
-        return ResponseEntity.ok(new LoginResponse(
-                "User fetched successfully",
-                token,
-                user.getId(),
-                user.getEmail(),
-                user.getName(),
-                user.getRole().toString()
-        ));
+            // Try UserModel first (customers, admin, workers)
+            try {
+                UserModel user = authService.getUserByEmail(email);
+                id = user.getId();
+                name = user.getName();
+                role = user.getRole().toString();
+            } catch (Exception e) {
+                // Fall back to ServiceCenter or FleetManager collections
+                id = authService.getIdByEmail(email);
+                name = authService.getNameByEmail(email);
+                role = authService.getRoleByEmail(email);
+            }
+
+            return ResponseEntity.ok(new LoginResponse(
+                    "User fetched successfully",
+                    token,
+                    id,
+                    email,
+                    name,
+                    role));
         } catch (Exception e) {
             return ResponseEntity.status(401).body(new ErrorResponse("Invalid token"));
         }

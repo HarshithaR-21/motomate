@@ -23,8 +23,13 @@ public class CustomerServiceModel {
     private String fuelType;
     private String vehicleNumber;
     
+    // Service Center Selection
+    private String serviceCenterId;       // ID of the selected (approved) service center
+    private String serviceCenterName;     // Denormalized for display
+
     // Service Details - Store service IDs that reference ServiceDetails collection
-    private List<String> selectedServiceIds;  // IDs from ServiceDetails
+    private List<String> selectedServiceIds;  // IDs from ServiceDetails (SCOService IDs)
+    private List<String> selectedServiceNames; // Denormalized names for display
     private Double totalEstimatedPrice;
     private Integer totalEstimatedDuration;
     
@@ -156,6 +161,30 @@ public class CustomerServiceModel {
     
     public void setSelectedServiceIds(List<String> selectedServiceIds) {
         this.selectedServiceIds = selectedServiceIds;
+    }
+
+    public String getServiceCenterId() {
+        return serviceCenterId;
+    }
+
+    public void setServiceCenterId(String serviceCenterId) {
+        this.serviceCenterId = serviceCenterId;
+    }
+
+    public String getServiceCenterName() {
+        return serviceCenterName;
+    }
+
+    public void setServiceCenterName(String serviceCenterName) {
+        this.serviceCenterName = serviceCenterName;
+    }
+
+    public List<String> getSelectedServiceNames() {
+        return selectedServiceNames;
+    }
+
+    public void setSelectedServiceNames(List<String> selectedServiceNames) {
+        this.selectedServiceNames = selectedServiceNames;
     }
     
     public Double getTotalEstimatedPrice() {

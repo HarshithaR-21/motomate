@@ -116,13 +116,16 @@ public class SCOOwnerService {
     // ═══════════════════════════════════════════════════════════════
 
     public SCOWorker addWorker(String ownerId, SCOWorker worker) {
-    worker.setServiceCenterId(ownerId);
-    worker.setAvailability("AVAILABLE");
-    worker.setActive(true);
-    worker.setCompletedJobs(0);   // works with Integer too
-    worker.setRating(0.0);        // works with Double too
-    return workerRepo.save(worker);
-}
+        worker.setServiceCenterId(ownerId);
+        worker.setAvailability("AVAILABLE");
+        worker.setActive(true);
+        worker.setCompletedJobs(0);
+        worker.setRating(0.0);
+        if (worker.getSkills() == null) {
+            worker.setSkills(new java.util.ArrayList<>());
+        }
+        return workerRepo.save(worker);
+    }
 
     public List<SCOWorker> listWorkers(String ownerId, String role, String availability) {
         if (role != null && !role.isBlank()) {
@@ -145,6 +148,9 @@ public class SCOOwnerService {
         existing.setEmail(updated.getEmail());
         existing.setRole(updated.getRole());
         existing.setAvailability(updated.getAvailability());
+        if (updated.getSkills() != null) {
+            existing.setSkills(updated.getSkills());
+        }
         return workerRepo.save(existing);
     }
 
@@ -182,12 +188,64 @@ public class SCOOwnerService {
             .orElseThrow(() -> new RuntimeException("Request not found"));
     }
 
+    /**
+     * Accept a request AND auto-assign the best available worker by skill match.
+     * Skill matching: each SCOService has a category; worker skills are matched
+     * against those categories. The worker with the highest overlap is chosen.
+     * If no skill match exists, falls back to the worker with the most completedJobs.
+     * If no workers are available at all, the request is set to ACCEPTED (not ASSIGNED)
+     * so the owner can manually assign later.
+     */
     public SCOServiceRequest acceptRequest(String ownerId, String requestId) {
         SCOServiceRequest req = getRequest(requestId);
         if (!req.getServiceCenterId().equals(ownerId)) throw new RuntimeException("Unauthorized");
-        req.setStatus("ACCEPTED");
+
+        // Collect required skill tags from the requested service names
+        java.util.Set<String> requiredSkills = new java.util.HashSet<>();
+        if (req.getServiceNames() != null) {
+            for (String svcName : req.getServiceNames()) {
+                // Match by name against active services of this center
+                serviceRepo.findByServiceCenterId(ownerId).stream()
+                    .filter(s -> s.getName() != null && s.getName().equalsIgnoreCase(svcName))
+                    .forEach(s -> {
+                        if (s.getCategory() != null) requiredSkills.add(normalise(s.getCategory()));
+                        requiredSkills.add(normalise(s.getName()));
+                    });
+            }
+        }
+
+        // Find all AVAILABLE workers for this center
+        List<SCOWorker> availableWorkers = workerRepo.findByServiceCenterIdAndAvailability(ownerId, "AVAILABLE");
+
+        if (!availableWorkers.isEmpty()) {
+            // Score each worker
+            SCOWorker best = availableWorkers.stream()
+                .max(java.util.Comparator.comparingLong((SCOWorker w) -> {
+                    List<String> skills = w.getSkills() != null ? w.getSkills() : List.of();
+                    return skills.stream().filter(sk -> requiredSkills.contains(normalise(sk))).count();
+                }).thenComparingInt(w -> w.getCompletedJobs() != null ? w.getCompletedJobs() : 0))
+                .orElse(null);
+
+            if (best != null) {
+                req.setAssignedWorkerId(best.getId());
+                req.setAssignedWorkerName(best.getName());
+                req.setStatus("ASSIGNED");
+                best.setAvailability("BUSY");
+                workerRepo.save(best);
+            } else {
+                req.setStatus("ACCEPTED");
+            }
+        } else {
+            req.setStatus("ACCEPTED"); // No workers available — owner must assign manually
+        }
+
         req.setUpdatedAt(LocalDateTime.now());
         return requestRepo.save(req);
+    }
+
+    private String normalise(String raw) {
+        if (raw == null) return "";
+        return raw.toUpperCase().replace(" ", "_").replace("-", "_");
     }
 
     public SCOServiceRequest assignWorker(String ownerId, String requestId, String workerId) {
