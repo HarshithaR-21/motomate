@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Wrench, Car, Truck, Bus, Bike, Calendar, Clock, Hash,
   Settings, Search, AlertTriangle, X, ChevronRight,
-  Info, CarFront, Loader2,
+  Info, CarFront, Loader2, User, Phone, Star, CheckCircle2,
 } from "lucide-react";
+import { toast, Toaster } from "react-hot-toast";
 
-const API_URL = "http://localhost:8080/api/services/all";
+const API_URL     = "http://localhost:8080/api/services/all";
+const BASE_URL    = "http://localhost:8080";
 
 function getVehicleIcon(type = "") {
   const t = type?.toLowerCase();
@@ -29,14 +31,58 @@ function formatDateLong(dateStr) {
   });
 }
 
+// ── Worker Assignment Banner ───────────────────────────────────────────
+function WorkerAssignedBanner({ notification, onDismiss }) {
+  if (!notification) return null;
+  return (
+    <div className="fixed bottom-6 right-6 z-50 max-w-sm w-full bg-white border border-green-200 rounded-2xl shadow-2xl p-5 animate-in slide-in-from-bottom-4">
+      <div className="flex items-start gap-3">
+        <div className="w-11 h-11 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+          <User className="w-5 h-5 text-green-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <CheckCircle2 className="w-4 h-4 text-green-500" />
+            <p className="font-bold text-gray-900 text-sm">Worker Assigned!</p>
+          </div>
+          <p className="text-gray-700 text-sm font-semibold">{notification.workerName}</p>
+          <p className="text-gray-500 text-xs">{notification.workerRole}</p>
+          {notification.workerPhone && (
+            <p className="flex items-center gap-1 text-gray-500 text-xs mt-1">
+              <Phone className="w-3 h-3" /> {notification.workerPhone}
+            </p>
+          )}
+          {notification.workerRating > 0 && (
+            <p className="flex items-center gap-1 text-amber-500 text-xs mt-0.5">
+              <Star className="w-3 h-3 fill-amber-400" />
+              {Number(notification.workerRating).toFixed(1)} rating
+            </p>
+          )}
+          {notification.workerSkills?.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {notification.workerSkills.slice(0, 3).map(s => (
+                <span key={s} className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md border border-blue-100">{s}</span>
+              ))}
+            </div>
+          )}
+        </div>
+        <button onClick={onDismiss} className="text-gray-400 hover:text-gray-600 mt-0.5">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Modal ──────────────────────────────────────────────────────────────
-function Modal({ service, onClose }) {
+function Modal({ service, assignmentMap, onClose }) {
   if (!service) return null;
-  const { id, vehicalType, selectedVehicle, serviceMode, selectedTime, selectedDate } = service;
+  const { id, vehicalType, vehicleType, selectedVehicle, serviceMode, selectedTime, selectedDate, status } = service;
+  const assignment = assignmentMap?.[id];
 
   const rows = [
     { icon: <Hash className="w-4 h-4" />,      label: "Service ID",       value: `#${id}` },
-    { icon: <Car className="w-4 h-4" />,        label: "Vehicle Type",     value: vehicalType || "—" },
+    { icon: <Car className="w-4 h-4" />,        label: "Vehicle Type",     value: vehicalType || vehicleType || "—" },
     { icon: <CarFront className="w-4 h-4" />,   label: "Selected Vehicle", value: selectedVehicle || "—" },
     { icon: <Settings className="w-4 h-4" />,   label: "Service Mode",     value: serviceMode || "—" },
     { icon: <Calendar className="w-4 h-4" />,   label: "Scheduled Date",   value: formatDateLong(selectedDate) },
@@ -49,7 +95,7 @@ function Modal({ service, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl p-8 w-[90%] max-w-md shadow-2xl border border-blue-100"
+        className="bg-white rounded-2xl p-8 w-[90%] max-w-md shadow-2xl border border-blue-100 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -71,6 +117,17 @@ function Modal({ service, onClose }) {
           </button>
         </div>
 
+        {/* Status */}
+        {status && (
+          <div className={`mb-4 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2
+            ${status === "ASSIGNED" || status === "IN_PROGRESS" ? "bg-green-50 text-green-700 border border-green-200" :
+              status === "COMPLETED" ? "bg-gray-50 text-gray-600 border border-gray-200" :
+              "bg-blue-50 text-blue-700 border border-blue-200"}`}>
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            {status}
+          </div>
+        )}
+
         {/* Rows */}
         <div className="flex flex-col gap-2.5">
           {rows.map(({ icon, label, value }) => (
@@ -87,6 +144,43 @@ function Modal({ service, onClose }) {
           ))}
         </div>
 
+        {/* Assigned Worker Section */}
+        {assignment && (
+          <div className="mt-5 bg-green-50 border border-green-200 rounded-xl p-4">
+            <p className="text-xs font-bold text-green-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5" /> Assigned Worker
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold">
+                {assignment.workerName?.charAt(0) || "W"}
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-gray-900 text-sm">{assignment.workerName}</p>
+                <p className="text-gray-500 text-xs">{assignment.workerRole}</p>
+              </div>
+            </div>
+            {assignment.workerPhone && (
+              <p className="flex items-center gap-1.5 text-gray-600 text-sm mt-2">
+                <Phone className="w-3.5 h-3.5 text-green-600" />
+                {assignment.workerPhone}
+              </p>
+            )}
+            {assignment.workerRating > 0 && (
+              <p className="flex items-center gap-1 text-amber-600 text-sm mt-1">
+                <Star className="w-3.5 h-3.5 fill-amber-400" />
+                {Number(assignment.workerRating).toFixed(1)} / 5
+              </p>
+            )}
+            {assignment.workerSkills?.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {assignment.workerSkills.map(s => (
+                  <span key={s} className="text-xs bg-white text-blue-600 px-2 py-0.5 rounded-lg border border-blue-100">{s}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <button
           onClick={onClose}
           className="mt-6 w-full py-3 bg-linear-to-r from-blue-700 to-blue-500 text-white rounded-xl font-bold text-sm hover:opacity-90 transition-opacity"
@@ -99,25 +193,33 @@ function Modal({ service, onClose }) {
 }
 
 // ── Service Card ───────────────────────────────────────────────────────
-function ServiceCard({ service, onMoreInfo }) {
-  const { id, vehicalType, selectedVehicle, serviceMode, selectedTime, selectedDate } = service;
+function ServiceCard({ service, onMoreInfo, hasAssignment }) {
+  const { id, vehicalType, vehicleType, selectedVehicle, serviceMode, selectedTime, selectedDate } = service;
 
   return (
-    <div className="bg-white rounded-2xl border border-blue-100 shadow-sm hover:shadow-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 overflow-hidden">
+    <div className={`bg-white rounded-2xl border shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 overflow-hidden relative
+      ${hasAssignment ? "border-green-200 shadow-green-100" : "border-blue-100 hover:shadow-blue-200"}`}>
       {/* Top accent */}
-      <div className="h-1.5 bg-linear-to-r from-blue-700 to-blue-400" />
+      <div className={`h-1.5 ${hasAssignment ? "bg-linear-to-r from-green-500 to-green-400" : "bg-linear-to-r from-blue-700 to-blue-400"}`} />
+
+      {/* Worker Assigned Badge */}
+      {hasAssignment && (
+        <div className="absolute top-3 right-3 bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full border border-green-200 flex items-center gap-1">
+          <CheckCircle2 className="w-3 h-3" /> Worker Assigned
+        </div>
+      )}
 
       <div className="p-6">
         {/* Card Header */}
         <div className="flex items-center gap-3 mb-5">
           <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-blue-100 to-blue-50 border border-blue-200 flex items-center justify-center shrink-0">
-            {getVehicleIcon(vehicalType)}
+            {getVehicleIcon(vehicalType || vehicleType)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-blue-500 text-base truncate">
+            <p className="font-bold text-blue-500 text-base truncate pr-20">
               {selectedVehicle || "Unknown Vehicle"}
             </p>
-            <p className="text-blue-400 text-xs font-medium mt-0.5">{vehicalType || "—"}</p>
+            <p className="text-blue-400 text-xs font-medium mt-0.5">{vehicalType || vehicleType || "—"}</p>
           </div>
           <span className="shrink-0 text-xs font-semibold text-blue-500 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
             {serviceMode || "—"}
@@ -170,9 +272,25 @@ export default function ServiceHistory() {
   const [error, setError]                     = useState(null);
   const [selectedService, setSelectedService] = useState(null);
   const [search, setSearch]                   = useState("");
+  // Map of serviceRequestId → worker assignment data (from SSE)
+  const [assignmentMap, setAssignmentMap]     = useState({});
+  // Latest assignment for the floating banner
+  const [latestAssignment, setLatestAssignment] = useState(null);
 
+  const sseRef   = useRef(null);
+  const userRef  = useRef(null);  // stores { userId }
+
+  // ── Load customer userId from auth ──────────────────────────────────
   useEffect(() => {
-    fetch(API_URL)
+    fetch("http://localhost:8080/api/auth/me", { credentials: "include" })
+      .then(r => r.json())
+      .then(me => { userRef.current = { userId: me.id || me.userId }; })
+      .catch(() => {});
+  }, []);
+
+  // ── Load service history ─────────────────────────────────────────────
+  useEffect(() => {
+    fetch(API_URL, { credentials: "include" })
       .then(res => {
         if (!res.ok) throw new Error(`Server responded with status ${res.status}`);
         return res.json();
@@ -181,15 +299,91 @@ export default function ServiceHistory() {
       .catch(err => { setError(err.message); setLoading(false); });
   }, []);
 
+  // ── SSE subscription for worker assignment events ────────────────────
+  useEffect(() => {
+    // Wait for userId to be available
+    const openSse = (userId) => {
+      if (sseRef.current) { sseRef.current.close(); sseRef.current = null; }
+
+      const es = new EventSource(
+        `${BASE_URL}/api/notifications/subscribe/${userId}`,
+        { withCredentials: true }
+      );
+      sseRef.current = es;
+
+      es.addEventListener("connected", () => {
+        console.log("[SSE] Customer stream connected");
+      });
+
+      // Worker assigned to one of the customer's requests
+      es.addEventListener("worker_assigned_to_customer", (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log("[SSE] worker_assigned_to_customer", data);
+
+          const { requestId } = data;
+
+          // Store in assignmentMap so cards & modal can show it
+          setAssignmentMap(prev => ({ ...prev, [requestId]: data }));
+
+          // Show floating banner
+          setLatestAssignment(data);
+
+          // Also update the service list entry's status
+          setServices(prev => prev.map(s =>
+            s.id === requestId ? { ...s, status: "ASSIGNED" } : s
+          ));
+
+          // Toast
+          toast.success(
+            `Worker assigned: ${data.workerName} (${data.workerRole})`,
+            { duration: 6000, icon: "👷" }
+          );
+        } catch (err) {
+          console.error("[SSE] parse error", err);
+        }
+      });
+
+      es.onerror = () => {
+        es.close();
+        sseRef.current = null;
+        setTimeout(() => {
+          const uid = userRef.current?.userId;
+          if (uid) openSse(uid);
+        }, 5000);
+      };
+    };
+
+    // Try immediately; if userId not ready yet, poll briefly
+    const tryConnect = () => {
+      const uid = userRef.current?.userId;
+      if (uid) { openSse(uid); return; }
+      // Retry up to 3 s
+      let attempts = 0;
+      const interval = setInterval(() => {
+        const uid2 = userRef.current?.userId;
+        if (uid2) { clearInterval(interval); openSse(uid2); }
+        if (++attempts > 6) clearInterval(interval); // give up after ~3 s
+      }, 500);
+    };
+    tryConnect();
+
+    return () => {
+      if (sseRef.current) { sseRef.current.close(); sseRef.current = null; }
+    };
+  }, []);
+
   const filtered = services.filter(s =>
     !search ||
     s.selectedVehicle?.toLowerCase().includes(search.toLowerCase()) ||
     s.vehicalType?.toLowerCase().includes(search.toLowerCase()) ||
+    s.vehicleType?.toLowerCase().includes(search.toLowerCase()) ||
     s.serviceMode?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 to-blue-100">
+      <Toaster position="top-right" />
 
       {/* ── Header ── */}
       <header className="bg-linear-to-r from-blue-600 to-blue-500 shadow-xl px-8 py-6">
@@ -198,8 +392,8 @@ export default function ServiceHistory() {
             <Wrench className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-white text-2xl font-extrabold tracking-tight">Customer Services</h1>
-            <p className="text-blue-300 text-sm mt-0.5">All booked vehicle services</p>
+            <h1 className="text-white text-2xl font-extrabold tracking-tight">Service History</h1>
+            <p className="text-blue-300 text-sm mt-0.5">All your booked vehicle services</p>
           </div>
         </div>
       </header>
@@ -256,13 +450,28 @@ export default function ServiceHistory() {
         {!loading && !error && filtered.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map(service => (
-              <ServiceCard key={service.id} service={service} onMoreInfo={setSelectedService} />
+              <ServiceCard
+                key={service.id}
+                service={service}
+                onMoreInfo={setSelectedService}
+                hasAssignment={!!assignmentMap[service.id]}
+              />
             ))}
           </div>
         )}
       </main>
 
-      <Modal service={selectedService} onClose={() => setSelectedService(null)} />
+      {/* Modals & Overlays */}
+      <Modal
+        service={selectedService}
+        assignmentMap={assignmentMap}
+        onClose={() => setSelectedService(null)}
+      />
+
+      <WorkerAssignedBanner
+        notification={latestAssignment}
+        onDismiss={() => setLatestAssignment(null)}
+      />
     </div>
   );
 }

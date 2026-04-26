@@ -204,7 +204,6 @@ const SCOServices = () => {
                     </td>
                     <td className="py-4 px-5">
                       <div className="flex items-center gap-1 text-gray-800 font-semibold">
-                        <DollarSign size={13} className="text-purple-400" />
                         ₹{svc.price?.toLocaleString()}
                       </div>
                     </td>

@@ -13,10 +13,6 @@ import java.util.Map;
 /**
  * REST Controller for Service Center Owner module.
  * Base path: /api/sco
- *
- * All endpoints expect the SCO's userId passed as a path variable or
- * extracted from the JWT token. Using path variable here for simplicity
- * to align with existing pattern in the project.
  */
 @RestController
 @RequestMapping("/api/sco")
@@ -29,7 +25,6 @@ public class SCOOwnerController {
     //  DASHBOARD
     // ═══════════════════════════════════════════════════════════════
 
-    /** GET /api/sco/{ownerId}/dashboard */
     @GetMapping("/{ownerId}/dashboard")
     public ResponseEntity<?> getDashboard(@PathVariable String ownerId) {
         try {
@@ -43,7 +38,6 @@ public class SCOOwnerController {
     //  PROFILE
     // ═══════════════════════════════════════════════════════════════
 
-    /** GET /api/sco/{ownerId}/profile */
     @GetMapping("/{ownerId}/profile")
     public ResponseEntity<?> getProfile(@PathVariable String ownerId) {
         try {
@@ -59,7 +53,6 @@ public class SCOOwnerController {
     //  SERVICE MANAGEMENT
     // ═══════════════════════════════════════════════════════════════
 
-    /** GET /api/sco/{ownerId}/services */
     @GetMapping("/{ownerId}/services")
     public ResponseEntity<?> listServices(@PathVariable String ownerId) {
         try {
@@ -69,7 +62,6 @@ public class SCOOwnerController {
         }
     }
 
-    /** POST /api/sco/{ownerId}/services */
     @PostMapping("/{ownerId}/services")
     public ResponseEntity<?> createService(@PathVariable String ownerId,
                                            @RequestBody SCOService svc) {
@@ -80,7 +72,6 @@ public class SCOOwnerController {
         }
     }
 
-    /** PUT /api/sco/{ownerId}/services/{serviceId} */
     @PutMapping("/{ownerId}/services/{serviceId}")
     public ResponseEntity<?> updateService(@PathVariable String ownerId,
                                            @PathVariable String serviceId,
@@ -92,7 +83,6 @@ public class SCOOwnerController {
         }
     }
 
-    /** DELETE /api/sco/{ownerId}/services/{serviceId} */
     @DeleteMapping("/{ownerId}/services/{serviceId}")
     public ResponseEntity<?> deleteService(@PathVariable String ownerId,
                                            @PathVariable String serviceId) {
@@ -108,7 +98,6 @@ public class SCOOwnerController {
     //  WORKER MANAGEMENT
     // ═══════════════════════════════════════════════════════════════
 
-    /** GET /api/sco/{ownerId}/workers?role=&availability= */
     @GetMapping("/{ownerId}/workers")
     public ResponseEntity<?> listWorkers(@PathVariable String ownerId,
                                          @RequestParam(required = false) String role,
@@ -120,19 +109,52 @@ public class SCOOwnerController {
         }
     }
 
-    /** POST /api/sco/{ownerId}/workers */
+    /**
+     * POST /api/sco/{ownerId}/workers
+     *
+     * Accepts a flat JSON body that includes all SCOWorker fields PLUS an
+     * optional "workerPassword" field.  Spring deserialises the known SCOWorker
+     * fields automatically; we pull out workerPassword separately so it is
+     * never stored on the worker document itself.
+     *
+     * Example body:
+     * {
+     *   "name": "Ravi Kumar",
+     *   "phone": "9876543210",
+     *   "email": "ravi@example.com",
+     *   "role": "MECHANIC",
+     *   "availability": "AVAILABLE",
+     *   "skills": ["ENGINE", "BRAKES"],
+     *   "workerPassword": "secret123"   ← optional
+     * }
+     */
     @PostMapping("/{ownerId}/workers")
     public ResponseEntity<?> addWorker(@PathVariable String ownerId,
-                                       @RequestBody SCOWorker worker) {
+                                       @RequestBody Map<String, Object> body) {
         try {
-            return ResponseEntity.ok(scoService.addWorker(ownerId, worker));
+            // Extract the optional password before handing off to service
+            String workerPassword = (String) body.get("workerPassword");
+
+            // Map the remaining fields onto SCOWorker manually
+            // (avoids needing a separate DTO class)
+            SCOWorker worker = new SCOWorker();
+            worker.setName((String) body.get("name"));
+            worker.setPhone((String) body.get("phone"));
+            worker.setEmail((String) body.get("email"));
+            worker.setRole((String) body.get("role"));
+            worker.setAvailability((String) body.getOrDefault("availability", "AVAILABLE"));
+
+            @SuppressWarnings("unchecked")
+            java.util.List<String> skills = (java.util.List<String>) body.get("skills");
+            worker.setSkills(skills != null ? skills : new java.util.ArrayList<>());
+
+            return ResponseEntity.ok(scoService.addWorker(ownerId, worker, workerPassword));
         } catch (Exception e) {
-            e.printStackTrace(); // prints full stack to console
-        return ResponseEntity.status(500).body(e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }
 
-    /** PUT /api/sco/{ownerId}/workers/{workerId} */
     @PutMapping("/{ownerId}/workers/{workerId}")
     public ResponseEntity<?> updateWorker(@PathVariable String ownerId,
                                           @PathVariable String workerId,
@@ -144,7 +166,6 @@ public class SCOOwnerController {
         }
     }
 
-    /** PATCH /api/sco/{ownerId}/workers/{workerId}/toggle-availability */
     @PatchMapping("/{ownerId}/workers/{workerId}/toggle-availability")
     public ResponseEntity<?> toggleAvailability(@PathVariable String ownerId,
                                                 @PathVariable String workerId) {
@@ -155,7 +176,6 @@ public class SCOOwnerController {
         }
     }
 
-    /** DELETE /api/sco/{ownerId}/workers/{workerId} */
     @DeleteMapping("/{ownerId}/workers/{workerId}")
     public ResponseEntity<?> deleteWorker(@PathVariable String ownerId,
                                           @PathVariable String workerId) {
@@ -171,7 +191,6 @@ public class SCOOwnerController {
     //  SERVICE REQUESTS
     // ═══════════════════════════════════════════════════════════════
 
-    /** GET /api/sco/{ownerId}/requests?status= */
     @GetMapping("/{ownerId}/requests")
     public ResponseEntity<?> listRequests(@PathVariable String ownerId,
                                           @RequestParam(required = false) String status) {
@@ -182,7 +201,6 @@ public class SCOOwnerController {
         }
     }
 
-    /** GET /api/sco/{ownerId}/requests/{requestId} */
     @GetMapping("/{ownerId}/requests/{requestId}")
     public ResponseEntity<?> getRequest(@PathVariable String ownerId,
                                         @PathVariable String requestId) {
@@ -193,7 +211,6 @@ public class SCOOwnerController {
         }
     }
 
-    /** PATCH /api/sco/{ownerId}/requests/{requestId}/accept */
     @PatchMapping("/{ownerId}/requests/{requestId}/accept")
     public ResponseEntity<?> acceptRequest(@PathVariable String ownerId,
                                            @PathVariable String requestId) {
@@ -204,7 +221,6 @@ public class SCOOwnerController {
         }
     }
 
-    /** PATCH /api/sco/{ownerId}/requests/{requestId}/assign  Body: { "workerId": "..." } */
     @PatchMapping("/{ownerId}/requests/{requestId}/assign")
     public ResponseEntity<?> assignWorker(@PathVariable String ownerId,
                                           @PathVariable String requestId,
@@ -219,7 +235,6 @@ public class SCOOwnerController {
         }
     }
 
-    /** PATCH /api/sco/{ownerId}/requests/{requestId}/complete */
     @PatchMapping("/{ownerId}/requests/{requestId}/complete")
     public ResponseEntity<?> completeRequest(@PathVariable String ownerId,
                                              @PathVariable String requestId) {
@@ -230,7 +245,6 @@ public class SCOOwnerController {
         }
     }
 
-    /** PATCH /api/sco/{ownerId}/requests/{requestId}/status  Body: { "status": "..." } */
     @PatchMapping("/{ownerId}/requests/{requestId}/status")
     public ResponseEntity<?> updateStatus(@PathVariable String ownerId,
                                           @PathVariable String requestId,
@@ -245,7 +259,6 @@ public class SCOOwnerController {
         }
     }
 
-    /** POST /api/sco/requests  (for seeding/testing) */
     @PostMapping("/requests")
     public ResponseEntity<?> createRequest(@RequestBody SCOServiceRequest request) {
         try {

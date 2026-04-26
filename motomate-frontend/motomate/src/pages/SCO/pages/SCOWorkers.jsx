@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Users, ToggleLeft, ToggleRight, Briefcase, Tag } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, ToggleLeft, ToggleRight, Briefcase, Tag, KeyRound, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { fetchSCOWorkers, addSCOWorker, updateSCOWorker, deleteSCOWorker, toggleAvailability } from '../api';
 import {
   PageLoader, ErrorBlock, EmptyState, SectionHeader,
@@ -21,7 +21,6 @@ const SKILL_OPTIONS = [
   { value: 'ENGINE',               label: 'Engine Check'         },
   { value: 'AC',                   label: 'AC Service'           },
   { value: 'BATTERY',              label: 'Battery Issue'        },
-  { value: 'BODY_WORK',            label: 'Body Work'            },
 ];
 
 const SKILL_COLOR = {
@@ -55,13 +54,19 @@ const AVAILABILITY_OPTIONS = [
 ];
 const AVAIL_FORM_OPTIONS = AVAILABILITY_OPTIONS.slice(1);
 
-const EMPTY_FORM = { name: '', phone: '', email: '', role: 'MECHANIC', availability: 'AVAILABLE', skills: [] };
+const EMPTY_FORM = {
+  name: '', phone: '', email: '', role: 'MECHANIC', availability: 'AVAILABLE', skills: [],
+  // credential fields
+  createCredentials: false,
+  workerPassword: '',
+  confirmPassword: '',
+};
 
 const PHONE_REGEX = /^\d{10}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NAME_REGEX  = /^[a-zA-Z\s'.,-]{2,60}$/;
 
-const validateField = (name, value) => {
+const validateField = (name, value, form) => {
   switch (name) {
     case 'name':
       if (!value.trim())             return 'Name is required';
@@ -83,6 +88,16 @@ const validateField = (name, value) => {
     case 'availability':
       if (!value)                    return 'Please select availability';
       return '';
+    case 'workerPassword':
+      if (!form?.createCredentials)  return '';
+      if (!value)                    return 'Password is required';
+      if (value.length < 6)          return 'Password must be at least 6 characters';
+      return '';
+    case 'confirmPassword':
+      if (!form?.createCredentials)  return '';
+      if (!value)                    return 'Please confirm the password';
+      if (value !== form?.workerPassword) return 'Passwords do not match';
+      return '';
     default:
       return '';
   }
@@ -90,10 +105,14 @@ const validateField = (name, value) => {
 
 const validateAll = (form) => {
   const errs = {};
-  ['name', 'phone', 'email', 'role', 'availability'].forEach(k => {
-    const msg = validateField(k, form[k]);
+  ['name', 'phone', 'email', 'role', 'availability', 'workerPassword', 'confirmPassword'].forEach(k => {
+    const msg = validateField(k, form[k], form);
     if (msg) errs[k] = msg;
   });
+  // Extra: if credentials requested, email is mandatory
+  if (form.createCredentials && !form.email.trim()) {
+    errs.email = 'Email is required to create login credentials';
+  }
   return errs;
 };
 
@@ -137,6 +156,104 @@ const SkillsPicker = ({ selected, onChange }) => {
       </div>
       {selected.length > 0 && (
         <p className="text-xs text-purple-600 mt-2 font-medium">{selected.length} skill(s) selected</p>
+      )}
+    </div>
+  );
+};
+
+// ─── Password input with show/hide toggle ─────────────────────────────────────
+const PasswordInput = ({ label, error, value, onChange, onBlur, placeholder }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="flex flex-col gap-1.5">
+      {label && <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{label}</label>}
+      <div className="relative">
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={onChange}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          className={`w-full border rounded-xl px-3.5 py-2.5 pr-10 text-sm text-gray-800 outline-none focus:ring-2 transition-all
+            ${error ? 'border-red-300 focus:ring-red-200' : 'border-gray-200 focus:ring-purple-200 focus:border-purple-400'}`}
+        />
+        <button
+          type="button"
+          onClick={() => setShow(s => !s)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+        >
+          {show ? <EyeOff size={15} /> : <Eye size={15} />}
+        </button>
+      </div>
+      {error && <p className="text-xs text-red-500">{error}</p>}
+    </div>
+  );
+};
+
+// ─── Credentials section inside the modal ────────────────────────────────────
+const CredentialsSection = ({ form, errors, touched, onChange, onBlur }) => {
+  const fieldError = (k) => (touched[k] ? errors[k] : '');
+
+  return (
+    <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/40 p-4 space-y-4">
+      {/* Toggle header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center">
+            <KeyRound size={14} className="text-purple-600" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-gray-800">Create Login Credentials</p>
+            <p className="text-[11px] text-gray-500">Worker can log in using these credentials</p>
+          </div>
+        </div>
+        {/* Toggle switch */}
+        <button
+          type="button"
+          onClick={() => onChange('createCredentials', !form.createCredentials)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none
+            ${form.createCredentials ? 'bg-purple-600' : 'bg-gray-300'}`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform
+              ${form.createCredentials ? 'translate-x-6' : 'translate-x-1'}`}
+          />
+        </button>
+      </div>
+
+      {/* Credential fields — only shown when toggle is on */}
+      {form.createCredentials && (
+        <div className="space-y-3 pt-1">
+          {/* Email reminder */}
+          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            <ShieldCheck size={14} className="text-amber-600 mt-0.5 shrink-0" />
+            <p className="text-[11px] text-amber-700 leading-relaxed">
+              The worker will log in with their <strong>email address</strong> above as the username.
+              Make sure it is filled in correctly.
+            </p>
+          </div>
+
+          <PasswordInput
+            label="Password *"
+            placeholder="Set a password for the worker"
+            value={form.workerPassword}
+            onChange={e => onChange('workerPassword', e.target.value)}
+            onBlur={() => onBlur('workerPassword')}
+            error={fieldError('workerPassword')}
+          />
+          <PasswordInput
+            label="Confirm Password *"
+            placeholder="Re-enter the password"
+            value={form.confirmPassword}
+            onChange={e => onChange('confirmPassword', e.target.value)}
+            onBlur={() => onBlur('confirmPassword')}
+            error={fieldError('confirmPassword')}
+          />
+
+          <p className="text-[11px] text-gray-400">
+            Minimum 6 characters. Share these credentials with the worker after saving.
+          </p>
+        </div>
       )}
     </div>
   );
@@ -197,24 +314,39 @@ const SCOWorkers = () => {
   const openEdit = (w) => {
     setEditing(w);
     setForm({
-      name:         w.name,
-      phone:        w.phone || '',
-      email:        w.email || '',
-      role:         w.role,
-      availability: w.availability,
-      skills:       w.skills || [],
+      name:             w.name,
+      phone:            w.phone || '',
+      email:            w.email || '',
+      role:             w.role,
+      availability:     w.availability,
+      skills:           w.skills || [],
+      // Credentials not editable in edit mode
+      createCredentials: false,
+      workerPassword:   '',
+      confirmPassword:  '',
     });
     setErrors({}); setTouched({});
     setModalOpen(true);
   };
 
   const handleChange = (k, v) => {
-    setForm(f => ({ ...f, [k]: v }));
-    if (touched[k]) setErrors(e => ({ ...e, [k]: validateField(k, v) }));
+    setForm(f => {
+      const next = { ...f, [k]: v };
+      // When toggling credentials off, clear password fields and errors
+      if (k === 'createCredentials' && !v) {
+        next.workerPassword  = '';
+        next.confirmPassword = '';
+        setErrors(e => ({ ...e, workerPassword: '', confirmPassword: '' }));
+        setTouched(t => ({ ...t, workerPassword: false, confirmPassword: false }));
+      }
+      return next;
+    });
+    if (touched[k]) setErrors(e => ({ ...e, [k]: validateField(k, v, form) }));
   };
+
   const handleBlur = (k) => {
     setTouched(t => ({ ...t, [k]: true }));
-    setErrors(e => ({ ...e, [k]: validateField(k, form[k]) }));
+    setErrors(e => ({ ...e, [k]: validateField(k, form[k], form) }));
   };
 
   const handleSave = async () => {
@@ -222,13 +354,33 @@ const SCOWorkers = () => {
     setTouched(allTouched);
     const errs = validateAll(form);
     if (Object.keys(errs).length) { setErrors(errs); return; }
+
     setSaving(true);
     try {
       if (editing) {
-        const updated = await updateSCOWorker(ownerId, editing.id, form);
+        // Edit: credentials not re-sent (password change is a separate feature)
+        const payload = {
+          name:         form.name,
+          phone:        form.phone,
+          email:        form.email,
+          role:         form.role,
+          availability: form.availability,
+          skills:       form.skills,
+        };
+        const updated = await updateSCOWorker(ownerId, editing.id, payload);
         setWorkers(w => w.map(x => x.id === editing.id ? updated : x));
       } else {
-        const created = await addSCOWorker(ownerId, form);
+        // Add: include workerPassword only if credentials were requested
+        const payload = {
+          name:         form.name,
+          phone:        form.phone,
+          email:        form.email,
+          role:         form.role,
+          availability: form.availability,
+          skills:       form.skills,
+          ...(form.createCredentials && { workerPassword: form.workerPassword }),
+        };
+        const created = await addSCOWorker(ownerId, payload);
         setWorkers(w => [created, ...w]);
       }
       setModalOpen(false);
@@ -327,7 +479,15 @@ const SCOWorkers = () => {
                     {w.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-gray-900 text-sm">{w.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold text-gray-900 text-sm">{w.name}</p>
+                      {/* Credential indicator */}
+                      {w.workerUserId && (
+                        <span title="Has login credentials" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 text-[9px] font-bold">
+                          <KeyRound size={8} /> Login
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-500">{w.phone}</p>
                     {w.email && <p className="text-xs text-gray-400 truncate">{w.email}</p>}
                   </div>
@@ -341,7 +501,6 @@ const SCOWorkers = () => {
                   <StatusBadge status={w.availability} />
                 </div>
 
-                {/* Skills tags */}
                 {w.skills?.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {w.skills.map(sk => {
@@ -388,10 +547,20 @@ const SCOWorkers = () => {
             <Input label="Phone *" placeholder="1234567890" value={form.phone}
               onChange={e => handleChange('phone', e.target.value)} onBlur={() => handleBlur('phone')} error={fieldError('phone')} maxLength={10} />
             <div>
-              <Input label="Email (optional)" placeholder="worker@email.com" value={form.email}
-                onChange={e => handleChange('email', e.target.value)} onBlur={() => handleBlur('email')} error={fieldError('email')} />
+              <Input
+                label={`Email${form.createCredentials ? ' *' : ' (optional)'}`}
+                placeholder="worker@email.com"
+                value={form.email}
+                onChange={e => handleChange('email', e.target.value)}
+                onBlur={() => handleBlur('email')}
+                error={fieldError('email')}
+              />
               {!fieldError('email') && (
-                <p className="text-[11px] text-gray-400 mt-1 ml-1">Used for sending work notifications</p>
+                <p className="text-[11px] text-gray-400 mt-1 ml-1">
+                  {form.createCredentials
+                    ? 'This email will be used as the login username'
+                    : 'Used for sending work notifications'}
+                </p>
               )}
             </div>
             <Select label="Role *" options={ROLE_OPTIONS} value={form.role}
@@ -399,11 +568,21 @@ const SCOWorkers = () => {
             <Select label="Availability *" options={AVAIL_FORM_OPTIONS} value={form.availability}
               onChange={e => handleChange('availability', e.target.value)} onBlur={() => handleBlur('availability')} error={fieldError('availability')} />
 
-            {/* Skills multi-select */}
             <SkillsPicker
               selected={form.skills}
               onChange={skills => handleChange('skills', skills)}
             />
+
+            {/* ── Credentials section (only on Add, not Edit) ── */}
+            {!editing && (
+              <CredentialsSection
+                form={form}
+                errors={errors}
+                touched={touched}
+                onChange={handleChange}
+                onBlur={handleBlur}
+              />
+            )}
 
             {errors.submit && (
               <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{errors.submit}</p>

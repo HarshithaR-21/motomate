@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { Building2, MapPin, Phone, Globe, Clock, CheckCircle2, AlertTriangle, XCircle, FileText } from 'lucide-react';
 import { fetchSCOProfile } from '../api';
 import { PageLoader, ErrorBlock, StatusBadge, Card } from '../components/UI';
+import Header from '../components/Header';
 
 const InfoRow = ({ label, value }) => (
   <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 py-3 border-b border-purple-50 last:border-0">
@@ -83,8 +84,10 @@ const SCOProfile = () => {
   const p = profile;
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div>
       {/* Header */}
+      <Header />
+      <div className='text-center bg-purple-200 mt-25 w-full p-6'>
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Business Profile</h2>
         <p className="text-sm text-gray-500 mt-1">View your service center details submitted during registration.</p>
@@ -182,6 +185,7 @@ const SCOProfile = () => {
             ))}
           </div>
         </Card>
+      </div>
       </div>
     </div>
   );

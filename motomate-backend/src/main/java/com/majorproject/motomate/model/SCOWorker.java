@@ -28,20 +28,25 @@ public class SCOWorker {
 
     private String serviceCenterId;   // owner's userId
 
+    /**
+     * If credentials were created for this worker, this holds
+     * the corresponding UserModel.id so the worker can log in.
+     * Null when no credentials were created.
+     */
+    private String workerUserId;
+
     private String name;
     private String phone;
     private String email;
     private String role;              // e.g. MECHANIC, FUEL_DELIVERY, ELECTRICIAN, GENERAL
     private String availability;      // AVAILABLE | BUSY | OFF_DUTY
 
-    // Skills: predefined tags matching service categories
-    // e.g. ENGINE, TYRES, ELECTRICAL, AC, BODY_WORK, BRAKES, GENERAL_SERVICE, OIL_CHANGE
     private List<String> skills;
 
     private Integer completedJobs;
-    private Double rating;
-    
-    @Builder.Default// average rating 0-5
+    private Double  rating;
+
+    @Builder.Default
     private boolean active = true;
 
     @CreatedDate

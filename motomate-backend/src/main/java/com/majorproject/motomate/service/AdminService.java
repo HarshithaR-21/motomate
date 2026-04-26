@@ -36,8 +36,8 @@ public class AdminService {
         long totalUsers      = userRepository.count();
         long totalCustomers  = userRepository.countByRole(UserRoles.CUSTOMER);
         long totalWorkers    = userRepository.countByRole(UserRoles.WORKER);
-        long totalSCOwners   = userRepository.countByRole(UserRoles.SERVICE_CENTER_OWNER);
-        long totalFleet      = userRepository.countByRole(UserRoles.FLEET_MANAGER);
+        //long totalSCOwners   = userRepository.countByRole(UserRoles.SERVICE_CENTER_OWNER);
+        //long totalFleet      = userRepository.countByRole(UserRoles.FLEET_MANAGER);
 
         stats.put("totalUsers",          totalUsers);
         stats.put("totalCustomers",      totalCustomers);
