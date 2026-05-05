@@ -111,6 +111,8 @@ const BookService = () => {
                 selectedDate:         formData.selectedDate,
                 selectedTime:         convertTo24(formData.selectedTime),
                 urgency:              formData.urgency,
+                preferredWorkerId: formData.selectedWorkerId || null,
+                preferredWorkerName: formData.selectedWorkerName || null,
                 // Extras
                 additionalNotes:      formData.additionalNotes,
                 uploadedFiles:        [],

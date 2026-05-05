@@ -21,13 +21,15 @@ import java.util.Optional;
 @CrossOrigin(origins = "*")
 public class WorkerController {
 
-    private final WorkerServiceRequestRepository workerServiceRequestRepository;
 
     @Autowired
     private WorkerService workerService;
 
     @Autowired
     private SCOWorkerRepository scoWorkerRepository;
+
+    @Autowired
+    private WorkerServiceRequestRepository workerServiceRequestRepository;
 
     WorkerController(WorkerServiceRequestRepository workerServiceRequestRepository) {
         this.workerServiceRequestRepository = workerServiceRequestRepository;

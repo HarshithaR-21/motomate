@@ -28,7 +28,7 @@ public class SCOServiceRequest {
     @Id
     private String id;
 
-    private String serviceCenterId;   // assigned service center (owner userId)
+    private String serviceCenterId;
     private String customerId;
     private String customerName;
     private String customerPhone;
@@ -43,17 +43,21 @@ public class SCOServiceRequest {
 
     // Services requested
     private List<String> serviceNames;
-    private Double totalPrice;
+    private Double  totalPrice;
     private Integer totalDurationMinutes;
 
     // Scheduling
     private LocalDate scheduledDate;
     private LocalTime scheduledTime;
-    private String urgency;           // NORMAL | URGENT | EMERGENCY
+    private String urgency;
 
-    // Address
-    private String serviceMode;       // PICKUP | DROP_OFF | HOME_SERVICE
+    // Address & mode
+    private String serviceMode;
     private String address;
+
+    // Customer GPS coordinates (Doorstep service)
+    private Double customerLatitude;
+    private Double customerLongitude;
 
     // Assignment & status
     private String assignedWorkerId;
@@ -66,6 +70,21 @@ public class SCOServiceRequest {
 
     private String additionalNotes;
     private String cancellationReason;
+
+    // ── Customer rating (added for rating system) ─────────────────────────────
+    /** 1–5 stars from the customer. Null until rated. */
+    private Double  customerRating;
+
+    /** Optional written review from the customer. */
+    private String  customerFeedback;
+
+    /**
+     * True once the customer has submitted a rating.
+     * Prevents duplicate ratings. Default false (safe for existing documents).
+     */
+    @Builder.Default
+    private boolean rated = false;
+    // ─────────────────────────────────────────────────────────────────────────
 
     @CreatedDate
     private LocalDateTime createdAt;

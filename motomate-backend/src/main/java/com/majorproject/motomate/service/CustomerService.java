@@ -3,11 +3,16 @@ package com.majorproject.motomate.service;
 import com.majorproject.motomate.model.CustomerServiceModel;
 import com.majorproject.motomate.model.SCOService;
 import com.majorproject.motomate.model.SCOServiceRequest;
+import com.majorproject.motomate.model.SCOWorker;
 import com.majorproject.motomate.model.UserModel;
+import com.majorproject.motomate.realtime.SseNotificationService;
 import com.majorproject.motomate.repository.CustomerServiceRepository;
 import com.majorproject.motomate.repository.SCOServiceRepository;
 import com.majorproject.motomate.repository.SCOServiceRequestRepository;
+import com.majorproject.motomate.repository.SCOWorkerRepository;
 import com.majorproject.motomate.repository.UserRepository;
+import com.majorproject.motomate.repository.WorkerServiceRequestRepository;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -20,39 +25,129 @@ import java.util.stream.Collectors;
 @Service
 public class CustomerService {
 
+    private static final Logger log = Logger.getLogger(CustomerService.class.getName());
+
     @Autowired
     private CustomerServiceRepository customerServiceRepository;
-
     @Autowired
     private SCOServiceRequestRepository scoServiceRequestRepository;
-
     @Autowired
     private SCOServiceRepository scoServiceRepository;
-
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private WorkerServiceRequestRepository workerServiceRequestRepository;
+    @Autowired
+    private SCOWorkerRepository scoWorkerRepository;
+    @Autowired
+    private SseNotificationService sseNotificationService;
 
-    // 1. Create service booking → also creates a pending SCOServiceRequest
+    // ── NEW dependency ───────────────────────────────────────────────────────
+    @Autowired
+    private LocationService locationService;
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // 1. Create service booking
     public CustomerServiceModel createService(CustomerServiceModel customerService) {
-        Logger logger = Logger.getLogger(CustomerService.class.getName());
-        logger.info("Creating customer service booking: " + customerService);
         customerService.setCreatedAt(LocalDateTime.now());
         CustomerServiceModel saved = customerServiceRepository.save(customerService);
 
         // Auto-route: create a PENDING SCOServiceRequest for the chosen service center
-        if (customerService.getServiceCenterId() != null && !customerService.getServiceCenterId().isBlank()) {
+        if (customerService.getServiceCenterId() != null
+                && !customerService.getServiceCenterId().isBlank()) {
             try {
                 createSCOServiceRequest(saved);
             } catch (Exception e) {
-                logger.warning("Failed to create SCOServiceRequest: " + e.getMessage());
+                log.warning("Failed to create SCOServiceRequest: " + e.getMessage());
             }
         }
 
+        // ── Haversine nearest-worker auto-assignment (Doorstep only) ──────────
+        boolean isDoorstep = "Doorstep".equalsIgnoreCase(saved.getServiceMode())
+                || "HOME_SERVICE".equalsIgnoreCase(saved.getServiceMode());
+
+        boolean hasLocation = saved.getCustomerLatitude() != null
+                && saved.getCustomerLongitude() != null;
+
+        if (isDoorstep && hasLocation) {
+            try {
+                Optional<SCOWorker> assigned = locationService.assignNearestWorker(saved);
+                assigned.ifPresent(w -> log
+                        .info("Auto-assigned nearest worker: " + w.getName() + " for booking " + saved.getId()));
+            } catch (Exception e) {
+                log.warning("Haversine auto-assign failed: " + e.getMessage());
+                // Non-fatal — SCO can still assign manually
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+        String preferredWorkerId = customerService.getPreferredWorkerId();
+        String preferredWorkerName = customerService.getPreferredWorkerName();
+
+        if (preferredWorkerId != null && !preferredWorkerId.isBlank()) {
+            try {
+                // Find the SCOServiceRequest that was just created for this booking
+                workerServiceRequestRepository.findById(saved.getScoRequestId())
+                        .ifPresent(req -> {
+                            scoWorkerRepository.findById(preferredWorkerId).ifPresent(worker -> {
+
+                                // Assign on the SCOServiceRequest
+                                req.setAssignedWorkerId(preferredWorkerId);
+                                req.setAssignedWorkerName(
+                                        preferredWorkerName != null ? preferredWorkerName : worker.getName());
+                                req.setStatus("ASSIGNED");
+                                workerServiceRequestRepository.save(req);
+
+                                // Mirror status on CustomerServiceModel
+                                saved.setAssignedWorkerId(preferredWorkerId);
+                                saved.setAssignedWorkerName(worker.getName());
+                                saved.setStatus("ASSIGNED");
+                                customerServiceRepository.save(saved);
+
+                                // Mark worker as BUSY
+                                worker.setAvailability("BUSY");
+                                scoWorkerRepository.save(worker);
+
+                                // Notify customer via SSE — worker card appears immediately
+                                double rating = worker.getRating() != null ? worker.getRating() : 0.0;
+                                String skills = worker.getSkills() != null
+                                        ? "\"" + String.join("\",\"", worker.getSkills()) + "\""
+                                        : "";
+                                String assignedPayload = "{"
+                                        + "\"requestId\":\"" + req.getId() + "\","
+                                        + "\"workerName\":\"" + worker.getName() + "\","
+                                        + "\"workerRole\":\"" + worker.getRole() + "\","
+                                        + "\"workerPhone\":\"" + (worker.getPhone() != null ? worker.getPhone() : "")
+                                        + "\","
+                                        + "\"workerRating\":" + rating + ","
+                                        + "\"workerSkills\":[" + skills + "]"
+                                        + "}";
+                                sseNotificationService.notifyCustomer(saved.getUserId(), assignedPayload);
+
+                                // Notify the worker via SSE — new job appears on their dashboard
+                                String workerPayload = "{"
+                                        + "\"requestId\":\"" + req.getId() + "\","
+                                        + "\"customerName\":\""
+                                        + (req.getCustomerName() != null ? req.getCustomerName() : "") + "\","
+                                        + "\"vehicleNumber\":\""
+                                        + (req.getVehicleNumber() != null ? req.getVehicleNumber() : "") + "\","
+                                        + "\"serviceNames\":" + toJsonArray(req.getServiceNames())
+                                        + "}";
+                                sseNotificationService.notifyWorker(
+                                        worker.getWorkerUserId(), worker.getId(), workerPayload);
+
+                                log.info("Preferred worker assigned: " + worker.getName()
+                                        + " for booking " + saved.getId());
+                            });
+                        });
+            } catch (Exception e) {
+                log.warning("Preferred worker assignment failed: " + e.getMessage());
+                // Non-fatal — Haversine or SCO manual assign will still work
+            }
+        }
         return saved;
     }
 
     private void createSCOServiceRequest(CustomerServiceModel booking) {
-        // Fetch service details for names/price/duration
         List<SCOService> services = booking.getSelectedServiceIds() != null
                 ? booking.getSelectedServiceIds().stream()
                         .map(id -> scoServiceRepository.findById(id).orElse(null))
@@ -65,7 +160,6 @@ public class CustomerService {
         int totalDuration = services.stream().mapToInt(s -> s.getDurationMinutes() != null ? s.getDurationMinutes() : 0)
                 .sum();
 
-        // Fetch customer info
         String customerName = "";
         String customerPhone = "";
         String customerEmail = "";
@@ -99,11 +193,14 @@ public class CustomerService {
                 .serviceMode(booking.getServiceMode())
                 .address(booking.getManualAddress())
                 .additionalNotes(booking.getAdditionalNotes())
+                // ── NEW: pass customer GPS to worker's job ────────────────────
+                .customerLatitude(booking.getCustomerLatitude())
+                .customerLongitude(booking.getCustomerLongitude())
+                // ─────────────────────────────────────────────────────────────
                 .status("PENDING")
                 .build();
 
         SCOServiceRequest savedReq = scoServiceRequestRepository.save(req);
-        // Link SCO request ID back to customer booking so frontend can match SSE events
         booking.setScoRequestId(savedReq.getId());
         customerServiceRepository.save(booking);
     }
@@ -115,27 +212,30 @@ public class CustomerService {
 
     // 3. Edit service
     public CustomerServiceModel editService(String id, CustomerServiceModel updatedService) {
-        Optional<CustomerServiceModel> existingServiceOpt = customerServiceRepository.findById(id);
-        if (existingServiceOpt.isPresent()) {
-            CustomerServiceModel existingService = existingServiceOpt.get();
-
-            existingService.setVehicleType(updatedService.getVehicleType());
-            existingService.setSelectedVehicle(updatedService.getSelectedVehicle());
-            existingService.setBrand(updatedService.getBrand());
-            existingService.setModel(updatedService.getModel());
-            existingService.setFuelType(updatedService.getFuelType());
-            existingService.setVehicleNumber(updatedService.getVehicleNumber());
-            existingService.setServiceLocation(updatedService.getServiceLocation());
-            existingService.setManualAddress(updatedService.getManualAddress());
-            existingService.setServiceMode(updatedService.getServiceMode());
-            existingService.setSelectedDate(updatedService.getSelectedDate());
-            existingService.setSelectedTime(updatedService.getSelectedTime());
-            existingService.setUrgency(updatedService.getUrgency());
-            existingService.setAdditionalNotes(updatedService.getAdditionalNotes());
-            existingService.setUploadedFiles(updatedService.getUploadedFiles());
-
-            return customerServiceRepository.save(existingService);
+        Optional<CustomerServiceModel> existingOpt = customerServiceRepository.findById(id);
+        if (existingOpt.isPresent()) {
+            CustomerServiceModel existing = existingOpt.get();
+            existing.setVehicleType(updatedService.getVehicleType());
+            existing.setSelectedVehicle(updatedService.getSelectedVehicle());
+            existing.setBrand(updatedService.getBrand());
+            existing.setModel(updatedService.getModel());
+            existing.setFuelType(updatedService.getFuelType());
+            existing.setVehicleNumber(updatedService.getVehicleNumber());
+            existing.setServiceLocation(updatedService.getServiceLocation());
+            existing.setManualAddress(updatedService.getManualAddress());
+            existing.setServiceMode(updatedService.getServiceMode());
+            existing.setSelectedDate(updatedService.getSelectedDate());
+            existing.setSelectedTime(updatedService.getSelectedTime());
+            existing.setUrgency(updatedService.getUrgency());
+            existing.setAdditionalNotes(updatedService.getAdditionalNotes());
+            existing.setUploadedFiles(updatedService.getUploadedFiles());
+            return customerServiceRepository.save(existing);
         }
         return null;
     }
+    private String toJsonArray(List<String> items) {
+        if (items == null || items.isEmpty()) return "[]";
+        return "[\"" + String.join("\",\"", items) + "\"]";
+    }
+    
 }

@@ -24,18 +24,27 @@ public class CustomerServiceModel {
     private String vehicleNumber;
 
     // Service Center Selection
-    private String serviceCenterId; // ID of the selected (approved) service center
-    private String serviceCenterName; // Denormalized for display
+    private String serviceCenterId;
+    private String serviceCenterName;
 
-    // Service Details - Store service IDs that reference ServiceDetails collection
-    private List<String> selectedServiceIds; // IDs from ServiceDetails (SCOService IDs)
-    private List<String> selectedServiceNames; // Denormalized names for display
+    // Service Details
+    private List<String> selectedServiceIds;
+    private List<String> selectedServiceNames;
     private Double totalEstimatedPrice;
     private Integer totalEstimatedDuration;
 
     private String serviceLocation;
     private String manualAddress;
     private String serviceMode;
+
+    // ── NEW: Customer GPS coordinates (Doorstep service) ──────────────────────
+    private Double customerLatitude;
+    private Double customerLongitude;
+
+    // ── NEW: Assigned worker (set by Haversine auto-assignment) ──────────────
+    private String assignedWorkerId;
+    private String assignedWorkerName;
+    // ─────────────────────────────────────────────────────────────────────────
 
     // Scheduling
     private LocalDate selectedDate;
@@ -55,56 +64,30 @@ public class CustomerServiceModel {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    // Constructors
+    // ── Constructors ──────────────────────────────────────────────────────────
+
     public CustomerServiceModel() {
     }
 
-    public CustomerServiceModel(String id, String userId, String vehicleType, String selectedVehicle,
-            String brand, String model, String fuelType,
-            String vehicleNumber, List<String> selectedServiceIds,
-            Double totalEstimatedPrice, Integer totalEstimatedDuration,
-            String serviceLocation, String manualAddress,
-            String serviceMode, LocalDate selectedDate,
-            LocalTime selectedTime, String urgency,
-            String additionalNotes, List<FileUpload> uploadedFiles,
-            String customerId, String status,
-            LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this.id = id;
-        this.userId = userId;
-        this.vehicleType = vehicleType;
-        this.selectedVehicle = selectedVehicle;
-        this.brand = brand;
-        this.model = model;
-        this.fuelType = fuelType;
-        this.vehicleNumber = vehicleNumber;
-        this.selectedServiceIds = selectedServiceIds;
-        this.totalEstimatedPrice = totalEstimatedPrice;
-        this.totalEstimatedDuration = totalEstimatedDuration;
-        this.serviceLocation = serviceLocation;
-        this.manualAddress = manualAddress;
-        this.serviceMode = serviceMode;
-        this.selectedDate = selectedDate;
-        this.selectedTime = selectedTime;
-        this.urgency = urgency;
-        this.additionalNotes = additionalNotes;
-        this.uploadedFiles = uploadedFiles;
-        this.customerId = customerId;
-        this.status = status;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
+    /** Worker the customer explicitly chose from NearbyWorkersMap. */
+    private String preferredWorkerId;
+    private String preferredWorkerName;
+    // ── Getters & Setters ─────────────────────────────────────────────────────
 
-    // Getters and Setters
     public String getId() {
         return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     public String getUserId() {
         return userId;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getVehicleType() {
@@ -155,22 +138,6 @@ public class CustomerServiceModel {
         this.vehicleNumber = vehicleNumber;
     }
 
-    public String getScoRequestId() {
-        return scoRequestId;
-    }
-
-    public void setScoRequestId(String scoRequestId) {
-        this.scoRequestId = scoRequestId;
-    }
-
-    public List<String> getSelectedServiceIds() {
-        return selectedServiceIds;
-    }
-
-    public void setSelectedServiceIds(List<String> selectedServiceIds) {
-        this.selectedServiceIds = selectedServiceIds;
-    }
-
     public String getServiceCenterId() {
         return serviceCenterId;
     }
@@ -185,6 +152,14 @@ public class CustomerServiceModel {
 
     public void setServiceCenterName(String serviceCenterName) {
         this.serviceCenterName = serviceCenterName;
+    }
+
+    public List<String> getSelectedServiceIds() {
+        return selectedServiceIds;
+    }
+
+    public void setSelectedServiceIds(List<String> selectedServiceIds) {
+        this.selectedServiceIds = selectedServiceIds;
     }
 
     public List<String> getSelectedServiceNames() {
@@ -234,6 +209,57 @@ public class CustomerServiceModel {
     public void setServiceMode(String serviceMode) {
         this.serviceMode = serviceMode;
     }
+
+    public String getPreferredWorkerId() {
+        return preferredWorkerId;
+    }
+
+    public void setPreferredWorkerId(String preferredWorkerId) {
+        this.preferredWorkerId = preferredWorkerId;
+    }
+
+    public String getPreferredWorkerName() {
+        return preferredWorkerName;
+    }
+
+    public void setPreferredWorkerName(String preferredWorkerName) {
+        this.preferredWorkerName = preferredWorkerName;
+    }
+    // ── NEW getters/setters ───────────────────────────────────────────────────
+
+    public Double getCustomerLatitude() {
+        return customerLatitude;
+    }
+
+    public void setCustomerLatitude(Double customerLatitude) {
+        this.customerLatitude = customerLatitude;
+    }
+
+    public Double getCustomerLongitude() {
+        return customerLongitude;
+    }
+
+    public void setCustomerLongitude(Double customerLongitude) {
+        this.customerLongitude = customerLongitude;
+    }
+
+    public String getAssignedWorkerId() {
+        return assignedWorkerId;
+    }
+
+    public void setAssignedWorkerId(String assignedWorkerId) {
+        this.assignedWorkerId = assignedWorkerId;
+    }
+
+    public String getAssignedWorkerName() {
+        return assignedWorkerName;
+    }
+
+    public void setAssignedWorkerName(String assignedWorkerName) {
+        this.assignedWorkerName = assignedWorkerName;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     public LocalDate getSelectedDate() {
         return selectedDate;
@@ -291,6 +317,14 @@ public class CustomerServiceModel {
         this.status = status;
     }
 
+    public String getScoRequestId() {
+        return scoRequestId;
+    }
+
+    public void setScoRequestId(String scoRequestId) {
+        this.scoRequestId = scoRequestId;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -307,7 +341,8 @@ public class CustomerServiceModel {
         this.updatedAt = updatedAt;
     }
 
-    // Nested class for file uploads
+    // ── Nested class ──────────────────────────────────────────────────────────
+
     public static class FileUpload {
         private String fileName;
         private String fileUrl;

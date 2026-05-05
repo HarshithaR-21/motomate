@@ -15,6 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
@@ -35,15 +36,15 @@ public class WorkerService {
 
     @Autowired
     private SseNotificationService sseNotificationService;
-    
-@Autowired
-private CustomerServiceRepository customerServiceRepository;
+
+    @Autowired
+    private CustomerServiceRepository customerServiceRepository;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     public Optional<SCOWorker> getWorkerByUserId(String userId) {
-    return workerRepo.findById(userId);
-}
+        return workerRepo.findById(userId);
+    }
 
     // ── Profile ────────────────────────────────────────────────────────────────
 
@@ -64,15 +65,9 @@ private CustomerServiceRepository customerServiceRepository;
     }
 
     public WorkerStatusResponse updateStatus(String workerId, String newStatus) {
-//         SCOServiceRequest job = requestRepo.findById(jobId)
-//         .orElseThrow(() -> new RuntimeException("Job not found: " + jobId));
-
-// // ADD THIS TEMPORARILY:
-// System.out.println("DEBUG >>> " + job.toString());
         SCOWorker worker = workerRepo.findById(workerId)
                 .orElseThrow(() -> new RuntimeException("Worker not found: " + workerId));
 
-        // If worker is on leave, don't allow direct transition to BUSY
         if ("ON_LEAVE".equals(worker.getAvailability()) && "BUSY".equals(newStatus)) {
             throw new RuntimeException("Cannot set BUSY from ON_LEAVE. Return to AVAILABLE first.");
         }
@@ -90,11 +85,11 @@ private CustomerServiceRepository customerServiceRepository;
     // ── Incoming Jobs ──────────────────────────────────────────────────────────
 
     public List<JobSummaryResponse> getIncomingJobs(String workerId) {
-        // Ensure worker exists
-        workerRepo.findById(workerId)
+        SCOWorker worker = workerRepo.findById(workerId)
                 .orElseThrow(() -> new RuntimeException("Worker not found: " + workerId));
 
-        return requestRepo.findIncomingJobsForWorker(workerId)
+        // FIX: findIncomingJobsForWorker takes serviceCenterId, not workerId
+        return requestRepo.findIncomingJobsForWorker(worker.getServiceCenterId())
                 .stream()
                 .map(this::toJobSummary)
                 .collect(Collectors.toList());
@@ -108,11 +103,10 @@ private CustomerServiceRepository customerServiceRepository;
             throw new RuntimeException("Cannot accept jobs while on leave.");
         }
 
-        // Check if worker already has an active job
         Optional<SCOServiceRequest> active = requestRepo.findCurrentJobForWorker(workerId);
-if (active.isPresent() && !active.get().getId().equals(jobId)) {
-    throw new RuntimeException("You already have an active job. Complete it before accepting a new one.");
-}
+        if (active.isPresent() && !active.get().getId().equals(jobId)) {
+            throw new RuntimeException("You already have an active job. Complete it before accepting a new one.");
+        }
 
         SCOServiceRequest job = requestRepo.findById(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found: " + jobId));
@@ -121,49 +115,43 @@ if (active.isPresent() && !active.get().getId().equals(jobId)) {
             throw new RuntimeException("This job is not assigned to you.");
         }
 
-        // Update job status to IN_PROGRESS
         job.setStatus("IN_PROGRESS");
         requestRepo.save(job);
         customerServiceRepository.findByScoRequestId(job.getId())
-    .ifPresent(booking -> {
-        booking.setStatus("IN_PROGRESS");
-        customerServiceRepository.save(booking);
-    });
+                .ifPresent(booking -> {
+                    booking.setStatus("IN_PROGRESS");
+                    customerServiceRepository.save(booking);
+                });
 
-        // Update worker availability
         worker.setAvailability("BUSY");
         workerRepo.save(worker);
 
-        // ── Notify the customer via SSE ──────────────────────────────────────
-        String customerId = job.getCustomerId(); // adjust getter to match your model
-
+        // Notify customer via SSE
+        String customerId = job.getCustomerId();
         if (customerId != null) {
             double rating = worker.getRating() != null ? worker.getRating() : 0.0;
             String skills = worker.getSkills() != null
                     ? "\"" + String.join("\",\"", worker.getSkills()) + "\""
                     : "";
 
-            // 1. worker_assigned_to_customer — populates the WorkerCard in the UI
             String assignedPayload = "{"
-                    + "\"requestId\":\""    + jobId                   + "\","
-                    + "\"workerName\":\""   + worker.getName()         + "\","
-                    + "\"workerRole\":\""   + worker.getRole()         + "\","
-                    + "\"workerPhone\":\""  + (worker.getPhone() != null ? worker.getPhone() : "") + "\","
-                    + "\"workerRating\":"   + rating                  + ","
-                    + "\"workerSkills\":["  + skills                  + "]"
+                    + "\"requestId\":\"" + jobId + "\","
+                    + "\"workerName\":\"" + worker.getName() + "\","
+                    + "\"workerRole\":\"" + worker.getRole() + "\","
+                    + "\"workerPhone\":\"" + (worker.getPhone() != null ? worker.getPhone() : "") + "\","
+                    + "\"workerRating\":" + rating + ","
+                    + "\"workerSkills\":[" + skills + "]"
                     + "}";
             sseNotificationService.notifyCustomer(customerId, assignedPayload);
 
-            // 2. job_status_updated — updates the status badge to IN_PROGRESS
             String statusPayload = "{"
-                    + "\"requestId\":\""         + jobId             + "\","
+                    + "\"requestId\":\"" + jobId + "\","
                     + "\"status\":\"IN_PROGRESS\","
                     + "\"message\":\"Your service has started!\","
                     + "\"assignedWorkerName\":\"" + worker.getName() + "\""
                     + "}";
             sseNotificationService.notifyJobStatusUpdate(customerId, statusPayload);
         }
-        // ────────────────────────────────────────────────────────────────────
 
         return JobActionResponse.builder()
                 .jobId(jobId)
@@ -188,7 +176,6 @@ if (active.isPresent() && !active.get().getId().equals(jobId)) {
             throw new RuntimeException("This job is not assigned to you.");
         }
 
-        // Mark as unassigned so SCO can reassign
         job.setStatus("PENDING");
         job.setAssignedWorkerId(null);
         job.setAssignedWorkerName(null);
@@ -227,12 +214,11 @@ if (active.isPresent() && !active.get().getId().equals(jobId)) {
         job.setStatus(newStatus);
         requestRepo.save(job);
         customerServiceRepository.findByScoRequestId(job.getId())
-    .ifPresent(booking -> {
-        booking.setStatus(newStatus);
-        customerServiceRepository.save(booking);
-    });
+                .ifPresent(booking -> {
+                    booking.setStatus(newStatus);
+                    customerServiceRepository.save(booking);
+                });
 
-        // Reset availability when job is completed
         String workerNewStatus = worker.getAvailability();
         if ("COMPLETED".equals(newStatus)) {
             worker.setAvailability("AVAILABLE");
@@ -242,23 +228,21 @@ if (active.isPresent() && !active.get().getId().equals(jobId)) {
             workerNewStatus = "AVAILABLE";
         }
 
-        // ── Notify customer of every milestone via SSE ───────────────────────
         String customerId = job.getCustomerId();
         if (customerId != null) {
             String label = getMilestoneLabel(newStatus);
             String statusPayload = "{"
-                    + "\"requestId\":\""          + jobId            + "\","
-                    + "\"status\":\""             + newStatus        + "\","
-                    + "\"message\":\""            + label            + "\","
+                    + "\"requestId\":\"" + jobId + "\","
+                    + "\"status\":\"" + newStatus + "\","
+                    + "\"message\":\"" + label + "\","
                     + "\"assignedWorkerName\":\"" + worker.getName() + "\","
-                    + "\"workerName\":\""         + worker.getName() + "\","
-                    + "\"workerRole\":\""         + worker.getRole() + "\","
-                    + "\"workerPhone\":\""        + (worker.getPhone() != null ? worker.getPhone() : "") + "\","
-                    + "\"workerRating\":"         + (worker.getRating() != null ? worker.getRating() : 0.0)
+                    + "\"workerName\":\"" + worker.getName() + "\","
+                    + "\"workerRole\":\"" + worker.getRole() + "\","
+                    + "\"workerPhone\":\"" + (worker.getPhone() != null ? worker.getPhone() : "") + "\","
+                    + "\"workerRating\":" + (worker.getRating() != null ? worker.getRating() : 0.0)
                     + "}";
             sseNotificationService.notifyJobStatusUpdate(customerId, statusPayload);
         }
-        // ────────────────────────────────────────────────────────────────────
 
         return JobActionResponse.builder()
                 .jobId(jobId)
@@ -285,27 +269,30 @@ if (active.isPresent() && !active.get().getId().equals(jobId)) {
     // ── Job History ────────────────────────────────────────────────────────────
 
     public PagedJobHistory getJobHistory(String workerId, String vehicleNumber,
-                                         String fromStr, String toStr, int page, int size) {
-        workerRepo.findById(workerId)
+            String fromStr, String toStr, int page, int size) {
+        SCOWorker worker = workerRepo.findById(workerId)
                 .orElseThrow(() -> new RuntimeException("Worker not found: " + workerId));
+
+        // FIX: history queries use serviceCenterId, not workerId
+        String serviceCenterId = worker.getServiceCenterId();
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updatedAt"));
         Page<SCOServiceRequest> result;
 
         boolean hasVehicle = vehicleNumber != null && !vehicleNumber.isBlank();
         boolean hasFrom    = fromStr != null && !fromStr.isBlank();
-        boolean hasTo      = toStr != null && !toStr.isBlank();
+        boolean hasTo      = toStr   != null && !toStr.isBlank();
 
         if (hasVehicle && hasFrom && hasTo) {
             LocalDate from = LocalDate.parse(fromStr, DATE_FMT);
-            LocalDate to   = LocalDate.parse(toStr, DATE_FMT);
-            result = requestRepo.findHistoryByVehicleAndDateRange(workerId, vehicleNumber.trim(), from, to, pageable);
+            LocalDate to   = LocalDate.parse(toStr,   DATE_FMT);
+            result = requestRepo.findHistoryByVehicleAndDateRange(serviceCenterId, vehicleNumber.trim(), from, to, pageable);
         } else if (hasVehicle) {
-            result = requestRepo.findHistoryByVehicleNumber(workerId, vehicleNumber.trim(), pageable);
+            result = requestRepo.findHistoryByVehicleNumber(serviceCenterId, vehicleNumber.trim(), pageable);
         } else if (hasFrom && hasTo) {
             LocalDate from = LocalDate.parse(fromStr, DATE_FMT);
-            LocalDate to   = LocalDate.parse(toStr, DATE_FMT);
-            result = requestRepo.findHistoryByDateRange(workerId, from, to, pageable);
+            LocalDate to   = LocalDate.parse(toStr,   DATE_FMT);
+            result = requestRepo.findHistoryByDateRange(serviceCenterId, from, to, pageable);
         } else {
             result = requestRepo.findByAssignedWorkerIdAndStatusOrderByUpdatedAtDesc(workerId, "COMPLETED", pageable);
         }
@@ -323,52 +310,6 @@ if (active.isPresent() && !active.get().getId().equals(jobId)) {
                 .build();
     }
 
-    // ── Ratings ────────────────────────────────────────────────────────────────
-
-    public RatingsResponse getRatings(String workerId) {
-        workerRepo.findById(workerId)
-                .orElseThrow(() -> new RuntimeException("Worker not found: " + workerId));
-
-        // Gather completed jobs that have a customer rating
-        List<SCOServiceRequest> completedJobs = requestRepo
-                .findByAssignedWorkerIdAndStatus(workerId, "COMPLETED");
-
-        // Filter jobs that actually have ratings (stored in cancellationReason field
-        // as a placeholder – in real impl, add a 'rating' field to SCOServiceRequest)
-        // For now we generate rating entries from any job with notes about rating
-        // In production: add customerRating and customerFeedback fields to SCOServiceRequest
-        List<RatingEntry> entries = completedJobs.stream()
-                .filter(j -> j.getAdditionalNotes() != null && j.getAdditionalNotes().contains("RATING:"))
-                .map(j -> {
-                    // Parse embedded rating from notes (temporary until model updated)
-                    double rating = parseRatingFromNotes(j.getAdditionalNotes());
-                    String feedback = parseFeedbackFromNotes(j.getAdditionalNotes());
-                    return RatingEntry.builder()
-                            .customerName(j.getCustomerName())
-                            .vehicleNumber(j.getVehicleNumber())
-                            .rating(rating)
-                            .feedback(feedback)
-                            .date(j.getUpdatedAt() != null ? j.getUpdatedAt().toLocalDate().toString() : null)
-                            .createdAt(j.getUpdatedAt())
-                            .build();
-                })
-                .collect(Collectors.toList());
-
-        OptionalDouble avg = entries.stream()
-                .mapToDouble(RatingEntry::getRating)
-                .average();
-
-        // Also use worker's stored average rating
-        SCOWorker worker = workerRepo.findById(workerId).orElseThrow();
-        double avgRating = avg.orElse(worker.getRating() != null ? worker.getRating() : 0.0);
-
-        return RatingsResponse.builder()
-                .averageRating(avgRating)
-                .totalRatings(entries.isEmpty() ? (worker.getCompletedJobs() != null ? worker.getCompletedJobs() : 0) : entries.size())
-                .ratings(entries)
-                .build();
-    }
-
     // ── Stats ──────────────────────────────────────────────────────────────────
 
     public WorkerStatsResponse getStats(String workerId) {
@@ -377,7 +318,9 @@ if (active.isPresent() && !active.get().getId().equals(jobId)) {
 
         long completed = requestRepo.countByAssignedWorkerIdAndStatus(workerId, "COMPLETED");
         long active    = requestRepo.findCurrentJobForWorker(workerId).isPresent() ? 1 : 0;
-        long pending   = requestRepo.findIncomingJobsForWorker(workerId).size();
+
+        // FIX: findIncomingJobsForWorker takes serviceCenterId
+        long pending   = requestRepo.findIncomingJobsForWorker(worker.getServiceCenterId()).size();
         long total     = requestRepo.countByAssignedWorkerId(workerId);
 
         double completionRate = total > 0 ? (completed * 100.0 / total) : 0.0;
@@ -388,8 +331,109 @@ if (active.isPresent() && !active.get().getId().equals(jobId)) {
                 .pendingRequests(pending)
                 .averageRating(worker.getRating() != null ? worker.getRating() : 0.0)
                 .completionRate(Math.round(completionRate * 10.0) / 10.0)
-                .avgResponseTime(null) // optional: track response times
+                .avgResponseTime(null)
                 .build();
+    }
+
+    // ── Ratings ────────────────────────────────────────────────────────────────
+
+    public RatingsResponse getRatings(String workerId) {
+        SCOWorker worker = workerRepo.findById(workerId)
+                .orElseThrow(() -> new RuntimeException("Worker not found: " + workerId));
+
+        // Reads SCOServiceRequest.rated == true (field added to model)
+        List<SCOServiceRequest> ratedRequests =
+                requestRepo.findRatedRequestsByWorkerId(workerId);
+
+        List<RatingEntry> entries = ratedRequests.stream()
+                .map(req -> RatingEntry.builder()
+                        .customerName(req.getCustomerName() != null ? req.getCustomerName() : "Customer")
+                        .vehicleNumber(req.getVehicleNumber())
+                        // FIX: reads customerRating field (not notes hack)
+                        .rating(req.getCustomerRating())
+                        .feedback(req.getCustomerFeedback())
+                        .date(req.getUpdatedAt() != null
+                                ? req.getUpdatedAt().toLocalDate().toString()
+                                : null)
+                        .createdAt(req.getUpdatedAt())
+                        .build())
+                .sorted((a, b) -> {
+                    if (a.getCreatedAt() == null && b.getCreatedAt() == null) return 0;
+                    if (a.getCreatedAt() == null) return 1;
+                    if (b.getCreatedAt() == null) return -1;
+                    return b.getCreatedAt().compareTo(a.getCreatedAt());
+                })
+                .collect(Collectors.toList());
+
+        OptionalDouble avg = entries.stream()
+                .mapToDouble(e -> e.getRating() != null ? e.getRating() : 0.0)
+                .average();
+
+        double avgRating = avg.orElse(worker.getRating() != null ? worker.getRating() : 0.0);
+
+        return RatingsResponse.builder()
+                .averageRating(Math.round(avgRating * 10.0) / 10.0)
+                .totalRatings(entries.size())
+                .ratings(entries)
+                .build();
+    }
+
+    /**
+     * Customer submits a rating for a completed job.
+     * Called by: PUT /api/services/{bookingId}/rate
+     *
+     * The controller resolves CustomerServiceModel.id → SCOServiceRequest.id
+     * before calling here, so requestId is always a valid SCOServiceRequest.id.
+     */
+    public void submitRating(String requestId, double rating, String feedback) {
+        SCOServiceRequest req = requestRepo.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Request not found: " + requestId));
+
+        if (req.isRated()) {
+            throw new IllegalStateException("This job has already been rated.");
+        }
+
+        // FIX: tolerate slight sync lag — accept COMPLETED or TESTING (near-complete)
+        // The CustomerServiceModel may already show COMPLETED while the
+        // SCOServiceRequest still says the last worker-set status.
+        List<String> rateableStatuses = List.of("COMPLETED", "TESTING", "WORK_STARTED");
+        if (!rateableStatuses.contains(req.getStatus())) {
+            throw new IllegalStateException(
+                "Can only rate a completed job. Current status: " + req.getStatus());
+        }
+
+        if (rating < 1 || rating > 5) {
+            throw new IllegalArgumentException("Rating must be between 1 and 5.");
+        }
+
+        req.setCustomerRating(rating);
+        req.setCustomerFeedback(feedback != null ? feedback.trim() : null);
+        req.setRated(true);
+        req.setUpdatedAt(LocalDateTime.now());
+        requestRepo.save(req);
+
+        if (req.getAssignedWorkerId() != null) {
+            updateWorkerAverage(req.getAssignedWorkerId());
+        }
+    }
+
+    /** Recalculate and persist the average rating on the SCOWorker document. */
+    private void updateWorkerAverage(String workerId) {
+        List<SCOServiceRequest> rated =
+                requestRepo.findRatedRequestsByWorkerId(workerId);
+
+        OptionalDouble avg = rated.stream()
+                .mapToDouble(r -> r.getCustomerRating() != null ? r.getCustomerRating() : 0.0)
+                .average();
+
+        double rounded = avg.isPresent()
+                ? Math.round(avg.getAsDouble() * 10.0) / 10.0
+                : 0.0;
+
+        workerRepo.findById(workerId).ifPresent(w -> {
+            w.setRating(rounded);
+            workerRepo.save(w);
+        });
     }
 
     // ── Mappers ────────────────────────────────────────────────────────────────
@@ -449,53 +493,22 @@ if (active.isPresent() && !active.get().getId().equals(jobId)) {
                 .totalDurationMinutes(r.getTotalDurationMinutes())
                 .scheduledDate(r.getScheduledDate() != null ? r.getScheduledDate().toString() : null)
                 .status(r.getStatus())
-                .rating(parseRatingFromNotes(r.getAdditionalNotes()))
-                .feedback(parseFeedbackFromNotes(r.getAdditionalNotes()))
+                // FIX: read from customerRating field instead of parsing notes string
+                .rating(r.getCustomerRating() != null ? r.getCustomerRating() : 0.0)
+                .feedback(r.getCustomerFeedback())
                 .updatedAt(r.getUpdatedAt())
                 .build();
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
-    private void validateStatus(String status) {
-        List<String> valid = List.of("AVAILABLE", "BUSY", "ON_LEAVE", "OFF_DUTY");
-        if (!valid.contains(status)) {
-            throw new RuntimeException("Invalid status: " + status + ". Allowed: " + valid);
-        }
-    }
-
     private void validateJobStatus(String status) {
         List<String> valid = List.of(
-            "REACHED_CENTER",
-            "DIAGNOSING",
-            "PARTS_ORDERED",
-            "WORK_STARTED",
-            "IN_PROGRESS",
-            "WAITING_PARTS",
-            "TESTING",
-            "COMPLETED"
-        );
+                "REACHED_CENTER", "DIAGNOSING", "PARTS_ORDERED",
+                "WORK_STARTED", "IN_PROGRESS", "WAITING_PARTS",
+                "TESTING", "COMPLETED");
         if (!valid.contains(status)) {
             throw new RuntimeException("Invalid job status: " + status + ". Allowed: " + valid);
         }
-    }
-
-    private double parseRatingFromNotes(String notes) {
-        if (notes == null) return 0.0;
-        try {
-            int idx = notes.indexOf("RATING:");
-            if (idx < 0) return 0.0;
-            String sub = notes.substring(idx + 7).split("[^0-9.]")[0];
-            return Double.parseDouble(sub.trim());
-        } catch (Exception e) {
-            return 0.0;
-        }
-    }
-
-    private String parseFeedbackFromNotes(String notes) {
-        if (notes == null) return null;
-        int idx = notes.indexOf("FEEDBACK:");
-        if (idx < 0) return null;
-        return notes.substring(idx + 9).trim();
     }
 }

@@ -8,7 +8,6 @@ export const fetchMe = () =>
   axios.get(`${BASE}/auth/me`, cfg).then(r => r.data);
 
 // ── Worker profile ────────────────────────────────────────────────────────────
-// Uses /by-user/{userId} to resolve UserModel.id → SCOWorker document
 export const fetchWorkerByUserId = (userId) =>
   axios.get(`${BASE}/worker/by-user/${userId}`, cfg).then(r => r.data);
 
@@ -34,7 +33,6 @@ export const fetchCurrentJob = (workerId) =>
   axios.get(`${BASE}/worker/${workerId}/current-job`, cfg)
     .then(r => r.data)
     .catch(err => {
-      // 404 = no active job — return null instead of throwing
       if (err.response?.status === 404) return null;
       throw err;
     });
@@ -46,25 +44,66 @@ export const updateJobStatus = (workerId, jobId, status) =>
 export const fetchJobHistory = (workerId, params = {}) =>
   axios.get(`${BASE}/worker/${workerId}/job-history`, { ...cfg, params }).then(r => r.data);
 
-// export const fetchRatings = (workerId) =>
-//   axios.get(`${BASE}/worker/${workerId}/ratings`, cfg).then(r => r.data);
+export const fetchRatings = (workerId) =>
+  axios.get(`${BASE}/worker/${workerId}/ratings`, cfg).then(r => r.data);
 
 // ── Dashboard stats ───────────────────────────────────────────────────────────
 export const fetchWorkerStats = (workerId) =>
   axios.get(`${BASE}/worker/${workerId}/stats`, cfg).then(r => r.data);
 
-// ── SSE helpers ───────────────────────────────────────────────────────────────
+// ── Location APIs (NEW) ───────────────────────────────────────────────────────
+
 /**
- * Opens a Server-Sent Events stream for the given userId.
- * Returns the EventSource instance so the caller can close it on cleanup.
+ * Push worker's current GPS to the backend.
+ * Called by useWorkerLocationTracker every 7 seconds.
+ */
+export const pushWorkerLocation = (workerId, latitude, longitude) =>
+  axios.put(`${BASE}/location/worker/${workerId}`, { latitude, longitude }, cfg)
+    .then(r => r.data);
+
+/**
+ * Deactivate worker's location sharing (job completed / went off duty).
+ */
+export const deactivateWorkerLocation = (workerId) =>
+  axios.put(`${BASE}/location/worker/${workerId}/deactivate`, {}, cfg).then(r => r.data);
+
+/**
+ * Customer: get the current location of the worker assigned to their booking.
+ * Use as a fallback if SSE is unavailable.
+ */
+export const fetchWorkerLocationForBooking = (bookingId) =>
+  axios.get(`${BASE}/location/booking/${bookingId}/worker`, cfg)
+    .then(r => r.data)
+    .catch(err => {
+      if (err.response?.status === 404) return null;
+      throw err;
+    });
+
+/**
+ * Store customer GPS coordinates on an existing booking.
+ * Called after geolocation resolves when Doorstep is selected.
+ */
+export const storeCustomerLocation = (bookingId, latitude, longitude) =>
+  axios.put(`${BASE}/location/booking/${bookingId}/customer`, { latitude, longitude }, cfg)
+    .then(r => r.data);
+
+// ── SSE helpers ───────────────────────────────────────────────────────────────
+
+/**
+ * Opens a Server-Sent Events stream for a worker.
+ * Returns the EventSource so the caller can close it on cleanup.
+ *
+ * Handles:
+ *  - connected               stream confirmed live
+ *  - worker_assigned         new job assigned
+ *  - job_status_updated      job status changed
  *
  * Usage:
  *   const es = openWorkerSse(userId, {
- *     onAssigned:         (data) => { ... },  // new job assigned
- *     onJobStatusUpdated: (data) => { ... },  // job status changed
- *     onConnected:        ()     => { ... },  // stream confirmed live
+ *     onAssigned:         (data) => { ... },
+ *     onJobStatusUpdated: (data) => { ... },
+ *     onConnected:        ()     => { ... },
  *   });
- *   // cleanup:
  *   return () => es.close();
  */
 export const openWorkerSse = (userId, handlers = {}) => {
@@ -75,7 +114,7 @@ export const openWorkerSse = (userId, handlers = {}) => {
     { withCredentials: true }
   );
 
-  es.addEventListener('connected', (e) => {
+  es.addEventListener('connected', () => {
     console.log('[SSE-worker] connected');
     onConnected?.();
   });
@@ -93,18 +132,30 @@ export const openWorkerSse = (userId, handlers = {}) => {
   es.onerror = (err) => {
     console.warn('[SSE-worker] stream error', err);
     onError?.(err);
-    // EventSource reconnects automatically; no manual retry needed
   };
 
   return es;
 };
 
 /**
- * Opens a Server-Sent Events stream for a customer userId.
- * Returns the EventSource instance.
+ * Opens a Server-Sent Events stream for a customer.
+ * Returns the EventSource.
+ *
+ * Handles:
+ *  - connected                    stream confirmed live
+ *  - worker_assigned_to_customer  worker was assigned
+ *  - worker_location_update       live GPS update from the worker  ← NEW
+ *
+ * Usage:
+ *   const es = openCustomerSse(userId, {
+ *     onWorkerAssigned:      (data) => { ... },
+ *     onWorkerLocationUpdate:(data) => { setWorkerLocation({ latitude: data.latitude, longitude: data.longitude }) },
+ *     onConnected:           ()     => { ... },
+ *   });
+ *   return () => es.close();
  */
 export const openCustomerSse = (userId, handlers = {}) => {
-  const { onWorkerAssigned, onConnected, onError } = handlers;
+  const { onWorkerAssigned, onWorkerLocationUpdate, onConnected, onError } = handlers;
 
   const es = new EventSource(
     `http://localhost:8080/api/notifications/subscribe/${userId}`,
@@ -121,62 +172,16 @@ export const openCustomerSse = (userId, handlers = {}) => {
     catch (err) { console.error('[SSE-customer] parse error', err); }
   });
 
+  // ── NEW: live worker location ─────────────────────────────────────────────
+  es.addEventListener('worker_location_update', (e) => {
+    try { onWorkerLocationUpdate?.(JSON.parse(e.data)); }
+    catch (err) { console.error('[SSE-customer] location parse error', err); }
+  });
+
   es.onerror = (err) => {
     console.warn('[SSE-customer] stream error', err);
     onError?.(err);
   };
 
   return es;
-};
-
-// FIX: BASE_URL was undefined — use BASE (already defined as 'http://localhost:8080/api')
-export const fetchRatings = async (workerId) => {
-  const res = await fetch(`${BASE}/worker/${workerId}/ratings`, {
-    credentials: 'include',
-  });
-  if (!res.ok) throw new Error('Failed to fetch ratings');
-  return res.json();
-};
-
-// ── Nearby workers (used by NearbyWorkersMap on the customer side) ───────────
-
-/**
- * Get active workers with GPS for the nearby-workers map.
- * Returns array of { id, workerId, workerName, role, rating, latitude, longitude, ... }
- */
-export const fetchNearbyWorkers = async (serviceCenterId) => {
-  const url = serviceCenterId
-    ? `${BASE}/location/workers/active?serviceCenterId=${serviceCenterId}`
-    : `${BASE}/location/workers/active`;
-
-  const res = await fetch(url, { credentials: 'include' });
-  if (!res.ok) throw new Error('Failed to fetch nearby workers');
-  return res.json();
-};
-
-// ── Chat ──────────────────────────────────────────────────────────────────────
-
-/**
- * Fetch all messages for a booking.
- */
-export const fetchChatMessages = async (bookingId) => {
-  const res = await fetch(`${BASE}/chat/${bookingId}/messages`, {
-    credentials: 'include',
-  });
-  if (!res.ok) throw new Error('Failed to fetch messages');
-  return res.json();
-};
-
-/**
- * Send a chat message.
- */
-export const sendChatMessage = async (bookingId, senderRole, senderName, content) => {
-  const res = await fetch(`${BASE}/chat/${bookingId}/messages`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ senderRole, senderName, content }),
-  });
-  if (!res.ok) throw new Error('Failed to send message');
-  return res.json();
 };
