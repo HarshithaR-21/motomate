@@ -342,7 +342,7 @@ export default function CurrentServiceStatus() {
 
   const loadBookings = async () => {
     try {
-      const res  = await fetch(`${BASE_URL}/api/services/all`, { credentials: "include" });
+      const res  = await fetch(`${BASE_URL}/api/services/my`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load bookings");
       const data = await res.json();
       const active = data.filter(b =>

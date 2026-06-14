@@ -71,6 +71,20 @@ public class CustomerServiceController {
         }
     }
 
+    // ── 2c. Get bookings for the currently logged-in customer only ────────────
+
+    @GetMapping("/my")
+    public ResponseEntity<?> getMyServices() {
+        try {
+            String userId = getCurrentUserId();
+            return new ResponseEntity<>(customerServiceService.getServicesForUser(userId), HttpStatus.OK);
+        } catch (IllegalStateException e) {
+            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+    }
+
     // ── 1b. Get previously serviced vehicles for the logged-in customer ───────
     @GetMapping("/my-vehicles")
     public ResponseEntity<?> getMyPreviousVehicles() {

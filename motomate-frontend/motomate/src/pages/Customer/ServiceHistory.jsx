@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { toast, Toaster } from "react-hot-toast";
 
-const API_URL     = "http://localhost:8080/api/services/all";
+const API_URL     = "http://localhost:8080/api/services/my";
 const BASE_URL    = "http://localhost:8080";
 
 function getVehicleIcon(type = "") {
