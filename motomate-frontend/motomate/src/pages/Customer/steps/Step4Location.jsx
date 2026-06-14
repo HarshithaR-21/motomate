@@ -21,8 +21,47 @@ import NearbyWorkersMap from '../../../Components/NearbyWorkersMap';
 const Step4Location = ({ formData, onChange }) => {
   const { coords, error, loading, refresh, denied } = useGeolocation();
   const [showWorkerMap, setShowWorkerMap] = useState(false);
+  const [verifyingAddress, setVerifyingAddress] = useState(false);
+  const [addressError, setAddressError] = useState(null);
 
   const isDoorstep = formData.serviceMode === 'Doorstep';
+
+  // Verify a manually-entered address resolves to a real, locatable place
+  // using Nominatim (OpenStreetMap) — prevents dummy / made-up addresses.
+  const verifyAddress = async () => {
+    const address = (formData.manualAddress || '').trim();
+    if (!address) {
+      setAddressError('Please enter an address first.');
+      return;
+    }
+    setVerifyingAddress(true);
+    setAddressError(null);
+    try {
+      const q = encodeURIComponent(`${address}, India`);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&addressdetails=1&countrycodes=in`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const result = data[0];
+        onChange('addressVerified', true);
+        onChange('manualAddressLat', parseFloat(result.lat));
+        onChange('manualAddressLng', parseFloat(result.lon));
+        setAddressError(null);
+      } else {
+        onChange('addressVerified', false);
+        onChange('manualAddressLat', null);
+        onChange('manualAddressLng', null);
+        setAddressError('We could not locate this address. Please enter a valid, real address (include area, city, state, pincode).');
+      }
+    } catch {
+      onChange('addressVerified', false);
+      setAddressError('Could not verify address right now. Please check your connection and try again.');
+    } finally {
+      setVerifyingAddress(false);
+    }
+  };
 
   // Auto-populate GPS coords into form
   useEffect(() => {
@@ -104,13 +143,51 @@ const Step4Location = ({ formData, onChange }) => {
               className="mt-4"
             >
               <textarea
-                placeholder="Enter full address..."
+                placeholder="Enter full address (e.g. House no, Street, Area, City, State, Pincode)..."
                 value={formData.manualAddress}
-                onChange={e => onChange('manualAddress', e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                onChange={e => {
+                  onChange('manualAddress', e.target.value);
+                  // Any edit invalidates a previous verification
+                  onChange('addressVerified', false);
+                  onChange('manualAddressLat', null);
+                  onChange('manualAddressLng', null);
+                }}
+                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none
+                  ${addressError ? 'border-red-400' : 'border-gray-300'}`}
                 rows={3}
               />
+
+              <div className="flex items-center gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={verifyAddress}
+                  disabled={!formData.manualAddress || !formData.manualAddress.trim() || verifyingAddress}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {verifyingAddress
+                    ? <><Loader2 size={12} className="animate-spin" /> Verifying…</>
+                    : <><MapPin size={12} /> Verify Address</>}
+                </button>
+
+                {formData.addressVerified && (
+                  <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                    <CheckCircle size={12} /> Address verified
+                  </span>
+                )}
+              </div>
+
+              {addressError && (
+                <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
+                  <AlertTriangle size={11} /> {addressError}
+                </p>
+              )}
+              {!addressError && !formData.addressVerified && (
+                <p className="text-gray-400 text-[11px] mt-1.5">
+                  Please verify your address before proceeding — this confirms it's a real, locatable address.
+                </p>
+              )}
             </motion.div>
+
           )}
         </AnimatePresence>
       </div>

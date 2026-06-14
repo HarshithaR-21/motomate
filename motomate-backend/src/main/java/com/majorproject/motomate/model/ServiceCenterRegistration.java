@@ -68,6 +68,13 @@ public class ServiceCenterRegistration {
     private String tradeLicensePath;
     private String shopPhotoPath;
 
+    // ── Location (geocoded from address) ───────────────────────────────────
+    private Double latitude;
+    private Double longitude;
+
+    // ── Supported vehicle brands (e.g. ["Hyundai", "Tata", "Hero"]) ─────────
+    private List<String> supportedBrands;
+
     // ── Admin / System Fields ───────────────────────────────────
     @Builder.Default
     private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;

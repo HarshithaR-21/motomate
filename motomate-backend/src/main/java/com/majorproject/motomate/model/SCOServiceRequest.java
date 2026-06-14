@@ -71,6 +71,13 @@ public class SCOServiceRequest {
     private String additionalNotes;
     private String cancellationReason;
 
+    /**
+     * Origin of the booking: "CUSTOMER" (default) or "FLEET".
+     * Used by SCO dashboard to visually distinguish fleet manager bookings.
+     */
+    @Builder.Default
+    private String bookingSource = "CUSTOMER";
+
     // ── Customer rating (added for rating system) ─────────────────────────────
     /** 1–5 stars from the customer. Null until rated. */
     private Double  customerRating;

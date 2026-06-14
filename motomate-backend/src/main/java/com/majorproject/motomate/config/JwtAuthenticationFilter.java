@@ -10,6 +10,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.majorproject.motomate.service.AuthService;
 import com.majorproject.motomate.service.JwtService;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -32,14 +33,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
+        // Resolve token: prefer Authorization header, fall back to "jwt" cookie.
+        // The login endpoint sets an HttpOnly "jwt" cookie, so cookie-based auth
+        // is the normal flow for browser clients.
+        String token = null;
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
+            token = header.substring(7);
+        } else if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("jwt".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                    break;
+                }
+            }
+        }
+
+        if (token != null) {
             try {
                 DecodedJWT jwt = jwtService.verifyToken(token);
                 String userId = jwt.getClaim("userId").asString();
                 System.out.println("JWT Token verified for userId: " + userId);
-                // load your user (could also implement UserDetailsService)
                 var user = authService.getUserById(userId);
 
                 if (SecurityContextHolder.getContext().getAuthentication() == null) {

@@ -3,7 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import {
   ClipboardList, Car, User, Calendar,
-  CheckCheck, UserCheck, ChevronDown, ChevronUp, Zap, Tag
+  CheckCheck, UserCheck, ChevronDown, ChevronUp, Zap, Tag, Truck
 } from 'lucide-react';
 import { fetchSCORequests, fetchSCOWorkers, acceptRequest, assignWorker, completeRequest } from '../api';
 import {
@@ -168,6 +168,11 @@ const RequestCard = ({ req, ownerId, workers, onAccept, onAssign, onComplete, ex
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-bold text-gray-900 text-sm">{req.customerName || 'Customer'}</p>
               <UrgencyBadge urgency={req.urgency} />
+              {req.bookingSource === 'FLEET' && (
+                <span className="text-[10px] bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Truck size={9} /> Fleet
+                </span>
+              )}
               {wasAutoAssigned && (
                 <span className="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                   <Zap size={9} /> Auto-assigned
@@ -249,7 +254,9 @@ const RequestCard = ({ req, ownerId, workers, onAccept, onAssign, onComplete, ex
 
           {req.additionalNotes && (
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
-              <p className="text-xs font-bold text-amber-600 mb-1">Customer Notes</p>
+              <p className="text-xs font-bold text-amber-600 mb-1">
+                {req.bookingSource === 'FLEET' ? 'Fleet Manager Notes' : 'Customer Notes'}
+              </p>
               <p className="text-xs text-amber-800">{req.additionalNotes}</p>
             </div>
           )}

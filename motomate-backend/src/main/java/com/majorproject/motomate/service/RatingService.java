@@ -1,6 +1,6 @@
 package com.majorproject.motomate.service;
 
-import com.majorproject.motomate.model.SCOWorker;
+//import com.majorproject.motomate.model.SCOWorker;
 import com.majorproject.motomate.model.WorkerRating;
 import com.majorproject.motomate.repository.RatingRepository;
 import com.majorproject.motomate.repository.SCOWorkerRepository;

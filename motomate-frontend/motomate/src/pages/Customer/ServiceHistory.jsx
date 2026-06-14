@@ -78,12 +78,14 @@ function WorkerAssignedBanner({ notification, onDismiss }) {
 function Modal({ service, assignmentMap, onClose }) {
   if (!service) return null;
   const { id, vehicalType, vehicleType, selectedVehicle, serviceMode, selectedTime, selectedDate, status } = service;
+  // Fix 3: Use helper for proper vehicle name
+  const vehicleDisplayName = getVehicleDisplayName(service);
   const assignment = assignmentMap?.[id];
 
   const rows = [
     { icon: <Hash className="w-4 h-4" />,      label: "Service ID",       value: `#${id}` },
     { icon: <Car className="w-4 h-4" />,        label: "Vehicle Type",     value: vehicalType || vehicleType || "—" },
-    { icon: <CarFront className="w-4 h-4" />,   label: "Selected Vehicle", value: selectedVehicle || "—" },
+    { icon: <CarFront className="w-4 h-4" />,   label: "Selected Vehicle", value: vehicleDisplayName || "—" },
     { icon: <Settings className="w-4 h-4" />,   label: "Service Mode",     value: serviceMode || "—" },
     { icon: <Calendar className="w-4 h-4" />,   label: "Scheduled Date",   value: formatDateLong(selectedDate) },
     { icon: <Clock className="w-4 h-4" />,      label: "Scheduled Time",   value: selectedTime || "—" },
@@ -192,9 +194,25 @@ function Modal({ service, assignmentMap, onClose }) {
   );
 }
 
+// Fix 3: Compute a proper vehicle display name, handling legacy "Add New" entries
+function getVehicleDisplayName(service) {
+  const { selectedVehicle, brand, model, fuelType, vehicleNumber } = service;
+  // If the stored name is meaningful (not "Add New" and not blank), use it
+  if (selectedVehicle && selectedVehicle !== 'Add New') return selectedVehicle;
+  // Build from brand + model (for bookings made after the fix, or legacy Add New)
+  const parts = [brand, model].filter(Boolean);
+  if (parts.length > 0) {
+    return parts.join(' ') + (fuelType ? ` (${fuelType})` : '');
+  }
+  // Last resort
+  return vehicleNumber || 'Unknown Vehicle';
+}
+
 // ── Service Card ───────────────────────────────────────────────────────
 function ServiceCard({ service, onMoreInfo, hasAssignment }) {
   const { id, vehicalType, vehicleType, selectedVehicle, serviceMode, selectedTime, selectedDate } = service;
+  // Fix 3: Use helper to get proper vehicle name
+  const vehicleDisplayName = getVehicleDisplayName(service);
 
   return (
     <div className={`bg-white rounded-2xl border shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 overflow-hidden relative
@@ -217,7 +235,7 @@ function ServiceCard({ service, onMoreInfo, hasAssignment }) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-blue-500 text-base truncate pr-20">
-              {selectedVehicle || "Unknown Vehicle"}
+              {vehicleDisplayName}
             </p>
             <p className="text-blue-400 text-xs font-medium mt-0.5">{vehicalType || vehicleType || "—"}</p>
           </div>

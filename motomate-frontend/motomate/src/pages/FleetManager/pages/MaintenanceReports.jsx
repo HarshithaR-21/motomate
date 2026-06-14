@@ -58,7 +58,23 @@ const MaintenanceReports = () => {
     finally { setLoading(false); }
   };
 
+  const [filterError, setFilterError] = useState('');
+
   useEffect(() => { load(); }, []);
+
+  const applyFilters = () => {
+    if (fromDate && toDate && fromDate > toDate) {
+      setFilterError('"From" date cannot be after "To" date');
+      return;
+    }
+    setFilterError('');
+    load();
+  };
+
+  const clearFilters = () => {
+    setFromDate(''); setToDate(''); setVehicleFilter('ALL');
+    setFilterError('');
+  };
 
   const showToast = (msg, type = 'success') => {
     setToast({ message: msg, type });
@@ -140,17 +156,22 @@ const MaintenanceReports = () => {
                 </div>
               </div>
             </div>
-            <button onClick={load}
+            <button onClick={applyFilters}
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors shadow-sm shadow-orange-200">
               Apply Filters
             </button>
             {(fromDate || toDate || vehicleFilter !== 'ALL') && (
-              <button onClick={() => { setFromDate(''); setToDate(''); setVehicleFilter('ALL'); }}
+              <button onClick={clearFilters}
                 className="text-sm text-gray-400 hover:text-gray-600 transition-colors underline">
                 Clear
               </button>
             )}
           </div>
+          {filterError && (
+            <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
+              <span>⚠</span> {filterError}
+            </p>
+          )}
         </div>
 
         {loading ? <PageLoader /> : error ? <ErrorBlock message={error} onRetry={load} /> : (

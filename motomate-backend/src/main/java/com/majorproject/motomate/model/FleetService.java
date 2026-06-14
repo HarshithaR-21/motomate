@@ -12,6 +12,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -27,12 +28,20 @@ public class FleetService {
     private String vehicleNumber;
     private String fleetManagerId;
 
-    private String serviceType;       // OIL_CHANGE, REPAIR, FULL_SERVICE, TIRE_CHANGE, INSPECTION
+    // Legacy single type — kept for backward compat
+    private String serviceType;
+
+    // NEW: multi-service names selected by fleet manager (like customer flow)
+    private List<String> selectedServiceNames;
+
     private String serviceCenter;
     private String serviceCenterId;
 
     private String assignedWorker;
     private String assignedWorkerId;
+
+    // NEW: linked SCOServiceRequest so it appears on SCO dashboard
+    private String scoRequestId;
 
     private LocalDate scheduledDate;
     private LocalTime scheduledTime;
@@ -48,6 +57,17 @@ public class FleetService {
 
     private LocalDateTime completedAt;
     private String bulkBatchId;  // bulk schedule batch ID
+
+    // Fix 9: Bulk discount fields — stored per service for transparent pricing
+    private Integer discountPercent;
+    private Double  discountAmount;
+    private Double  finalCost;
+
+    // NEW: Service center rating by fleet manager after completion
+    @Builder.Default
+    private boolean rated = false;
+    private Integer serviceCenterRating;
+    private String  serviceCenterFeedback;
 
     @CreatedDate
     private LocalDateTime createdAt;

@@ -20,13 +20,12 @@ public class FleetVehicleService {
 
     private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ISO_DATE_TIME;
 
-    // ── Add Vehicle ─────────────────────────────────────────────
+    // ── Add Vehicle ──────────────────────────────────────────────
     public VehicleResponse addVehicle(String fleetManagerId, VehicleRequest req) {
         if (vehicleRepo.existsByVehicleNumber(req.getVehicleNumber())) {
             throw new IllegalArgumentException(
-                    "Vehicle number " + req.getVehicleNumber() + " already exists");
+                    "Vehicle number " + req.getVehicleNumber() + " is already registered.");
         }
-
         FleetVehicle vehicle = FleetVehicle.builder()
                 .vehicleNumber(req.getVehicleNumber().toUpperCase())
                 .vehicleType(req.getVehicleType())
@@ -38,33 +37,42 @@ public class FleetVehicleService {
                 .fleetTag(req.getFleetTag())
                 .fleetManagerId(fleetManagerId)
                 .build();
-
         return toResponse(vehicleRepo.save(vehicle));
     }
 
-    // ── Get All Vehicles ────────────────────────────────────────
+    // ── Get All Vehicles — scoped to manager ─────────────────────
+    // Fix 6: findByFleetManagerId already scopes to the logged-in manager
     public List<VehicleResponse> getVehicles(String fleetManagerId) {
         return vehicleRepo.findByFleetManagerId(fleetManagerId)
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
-    // ── Get Single Vehicle ──────────────────────────────────────
-    public VehicleResponse getVehicle(String id) {
+    // ── Get Single Vehicle — with ownership check ─────────────────
+    // Fix 6: verifies vehicle belongs to requesting manager
+    public VehicleResponse getVehicleForManager(String id, String fleetManagerId) {
         FleetVehicle v = vehicleRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vehicle not found: " + id));
+        if (!fleetManagerId.equals(v.getFleetManagerId())) {
+            throw new IllegalArgumentException("Access denied: vehicle does not belong to your account.");
+        }
         return toResponse(v);
     }
 
-    // ── Update Vehicle ──────────────────────────────────────────
-    public VehicleResponse updateVehicle(String id, VehicleRequest req) {
+    // ── Update Vehicle — with ownership check ────────────────────
+    // Fix 6: ensures manager can only edit their own vehicles
+    public VehicleResponse updateVehicle(String id, String fleetManagerId, VehicleRequest req) {
         FleetVehicle v = vehicleRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vehicle not found: " + id));
 
-        // if number changed, check uniqueness
-        if (!v.getVehicleNumber().equals(req.getVehicleNumber())
-                && vehicleRepo.existsByVehicleNumber(req.getVehicleNumber())) {
+        if (!fleetManagerId.equals(v.getFleetManagerId())) {
+            throw new IllegalArgumentException("Access denied: vehicle does not belong to your account.");
+        }
+
+        // If number changed, check uniqueness
+        if (!v.getVehicleNumber().equalsIgnoreCase(req.getVehicleNumber())
+                && vehicleRepo.existsByVehicleNumber(req.getVehicleNumber().toUpperCase())) {
             throw new IllegalArgumentException(
-                    "Vehicle number " + req.getVehicleNumber() + " already exists");
+                    "Vehicle number " + req.getVehicleNumber() + " is already registered.");
         }
 
         v.setVehicleNumber(req.getVehicleNumber().toUpperCase());
@@ -79,22 +87,25 @@ public class FleetVehicleService {
         return toResponse(vehicleRepo.save(v));
     }
 
-    // ── Delete Vehicle ──────────────────────────────────────────
-    public void deleteVehicle(String id) {
-        if (!vehicleRepo.existsById(id)) {
-            throw new IllegalArgumentException("Vehicle not found: " + id);
+    // ── Delete Vehicle — with ownership check ────────────────────
+    // Fix 6: ensures manager can only delete their own vehicles
+    public void deleteVehicle(String id, String fleetManagerId) {
+        FleetVehicle v = vehicleRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Vehicle not found: " + id));
+        if (!fleetManagerId.equals(v.getFleetManagerId())) {
+            throw new IllegalArgumentException("Access denied: vehicle does not belong to your account.");
         }
         vehicleRepo.deleteById(id);
     }
 
-    // ── Dashboard Stats ─────────────────────────────────────────
+    // ── Dashboard Stats ───────────────────────────────────────────
     public FleetDashboardStats getDashboardStats(String fleetManagerId) {
-        long total       = vehicleRepo.countByFleetManagerId(fleetManagerId);
-        long active      = serviceRepo.countByFleetManagerIdAndStatus(fleetManagerId, "IN_PROGRESS")
-                         + serviceRepo.countByFleetManagerIdAndStatus(fleetManagerId, "ASSIGNED");
-        long completed   = serviceRepo.countByFleetManagerIdAndStatus(fleetManagerId, "COMPLETED");
-        long pending     = serviceRepo.countByFleetManagerIdAndStatus(fleetManagerId, "PENDING");
-        long inProgress  = serviceRepo.countByFleetManagerIdAndStatus(fleetManagerId, "IN_PROGRESS");
+        long total      = vehicleRepo.countByFleetManagerId(fleetManagerId);
+        long active     = serviceRepo.countByFleetManagerIdAndStatus(fleetManagerId, "IN_PROGRESS")
+                        + serviceRepo.countByFleetManagerIdAndStatus(fleetManagerId, "ASSIGNED");
+        long completed  = serviceRepo.countByFleetManagerIdAndStatus(fleetManagerId, "COMPLETED");
+        long pending    = serviceRepo.countByFleetManagerIdAndStatus(fleetManagerId, "PENDING");
+        long inProgress = serviceRepo.countByFleetManagerIdAndStatus(fleetManagerId, "IN_PROGRESS");
 
         double totalCost = serviceRepo.findByFleetManagerIdAndStatus(fleetManagerId, "COMPLETED")
                 .stream()
@@ -112,7 +123,7 @@ public class FleetVehicleService {
                 .build();
     }
 
-    // ── Mapper ───────────────────────────────────────────────────
+    // ── Mapper ────────────────────────────────────────────────────
     private VehicleResponse toResponse(FleetVehicle v) {
         return VehicleResponse.builder()
                 .id(v.getId())

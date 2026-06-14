@@ -84,6 +84,34 @@ public class SseNotificationService {
         pushEvent(customerId, "worker_location_update", payload);
     }
 
+    // ── Generic Notification ─────────────────────────────────────────────────
+
+    /**
+     * Sends a named SSE event to {@code userId} with a Map payload serialised
+     * to JSON.  Used by SOSService and any other service that needs to push
+     * arbitrary structured data without building the JSON string manually.
+     *
+     * @param userId    recipient's user / registration id
+     * @param eventName SSE event name (e.g. "SOS_SUBMITTED", "WORKER_ASSIGNED")
+     * @param data      key-value pairs that will be serialised to a JSON object
+     */
+    public void sendNotification(String userId, String eventName, Map<String, Object> data) {
+        StringBuilder json = new StringBuilder("{");
+        data.forEach((k, v) -> {
+            if (json.length() > 1) json.append(",");
+            json.append("\"").append(k).append("\":");
+            if (v == null) {
+                json.append("null");
+            } else if (v instanceof Number || v instanceof Boolean) {
+                json.append(v);
+            } else {
+                json.append("\"").append(v.toString().replace("\"", "\\\"")).append("\"");
+            }
+        });
+        json.append("}");
+        pushEvent(userId, eventName, json.toString());
+    }
+
     // ── Internal ─────────────────────────────────────────────────────────────
 
     private boolean pushEvent(String userId, String eventName, String payload) {

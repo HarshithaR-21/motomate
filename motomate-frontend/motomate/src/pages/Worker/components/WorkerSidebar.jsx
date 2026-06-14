@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, BriefcaseBusiness, ClipboardCheck,
-  History, Star, X, LogOut, Wrench, ChevronRight
+  History, Star, X, LogOut, Wrench, ChevronRight, AlertTriangle
 } from 'lucide-react';
 
 const NAV = [
@@ -17,6 +17,7 @@ const NAV = [
       { to: '/dashboard/worker/incoming', label: 'Incoming',    icon: BriefcaseBusiness },
       { to: '/dashboard/worker/current',  label: 'Current Job', icon: ClipboardCheck },
       { to: '/dashboard/worker/history',  label: 'History',     icon: History },
+      { to: '/dashboard/worker/sos',      label: 'SOS Requests', icon: AlertTriangle },
     ],
   },
   {

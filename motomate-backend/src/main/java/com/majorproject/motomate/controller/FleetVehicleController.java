@@ -41,7 +41,8 @@ public class FleetVehicleController {
         }
     }
 
-    // ── GET /api/fleet/vehicles ──────────────────────────────────
+    // ── GET /api/fleet/vehicles ─────────────────────────────────
+    // Fix 6: Only returns vehicles belonging to the authenticated manager
     @GetMapping
     public ResponseEntity<ApiResponse<List<VehicleResponse>>> getVehicles(
             @RequestHeader("X-Fleet-Manager-Id") String managerId) {
@@ -52,12 +53,15 @@ public class FleetVehicleController {
     }
 
     // ── GET /api/fleet/vehicles/{id} ─────────────────────────────
+    // Fix 6: Verifies the vehicle belongs to the requesting manager
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<VehicleResponse>> getVehicle(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<VehicleResponse>> getVehicle(
+            @RequestHeader("X-Fleet-Manager-Id") String managerId,
+            @PathVariable String id) {
         try {
             return ResponseEntity.ok(ApiResponse.<VehicleResponse>builder()
                     .success(true)
-                    .data(vehicleService.getVehicle(id))
+                    .data(vehicleService.getVehicleForManager(id, managerId))
                     .build());
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -69,15 +73,17 @@ public class FleetVehicleController {
     }
 
     // ── PUT /api/fleet/vehicles/{id} ─────────────────────────────
+    // Fix 6: Ownership verified before update
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<VehicleResponse>> updateVehicle(
+            @RequestHeader("X-Fleet-Manager-Id") String managerId,
             @PathVariable String id,
             @Valid @RequestBody VehicleRequest req) {
         try {
             return ResponseEntity.ok(ApiResponse.<VehicleResponse>builder()
                     .success(true)
                     .message("Vehicle updated successfully")
-                    .data(vehicleService.updateVehicle(id, req))
+                    .data(vehicleService.updateVehicle(id, managerId, req))
                     .build());
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest()
@@ -89,10 +95,13 @@ public class FleetVehicleController {
     }
 
     // ── DELETE /api/fleet/vehicles/{id} ──────────────────────────
+    // Fix 6: Ownership verified before deletion
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteVehicle(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<Void>> deleteVehicle(
+            @RequestHeader("X-Fleet-Manager-Id") String managerId,
+            @PathVariable String id) {
         try {
-            vehicleService.deleteVehicle(id);
+            vehicleService.deleteVehicle(id, managerId);
             return ResponseEntity.ok(ApiResponse.<Void>builder()
                     .success(true)
                     .message("Vehicle deleted successfully")
@@ -106,7 +115,7 @@ public class FleetVehicleController {
         }
     }
 
-    // ── GET /api/fleet/dashboard/stats ───────────────────────────
+    // ── GET /api/fleet/vehicles/dashboard/stats ──────────────────
     @GetMapping("/dashboard/stats")
     public ResponseEntity<ApiResponse<FleetDashboardStats>> getDashboardStats(
             @RequestHeader("X-Fleet-Manager-Id") String managerId) {

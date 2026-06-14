@@ -28,6 +28,12 @@ const validate = (f) => {
   else if (!/^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$/.test(f.vehicleNumber.toUpperCase()))
     errs.vehicleNumber = 'Format: KA01AB1234';
   if (!f.brand.trim()) errs.brand = 'Required';
+  if (!f.model.trim()) errs.model = 'Required';
+  if (f.year) {
+    const y = parseInt(f.year, 10);
+    if (isNaN(y) || y < 1990 || y > new Date().getFullYear() + 1)
+      errs.year = `Enter a year between 1990 and ${new Date().getFullYear() + 1}`;
+  }
   if (!f.issueDescription.trim()) errs.issueDescription = 'Required';
   return errs;
 };
@@ -275,7 +281,7 @@ const VehicleManagement = () => {
           <FormField label="Brand" required error={formErrors.brand}>
             <Input value={form.brand} onChange={e => setForm(p => ({ ...p, brand: e.target.value }))} placeholder="Toyota, Honda…" />
           </FormField>
-          <FormField label="Model">
+          <FormField label="Model" required error={formErrors.model}>
             <Input value={form.model} onChange={e => setForm(p => ({ ...p, model: e.target.value }))} placeholder="Innova, Activa…" />
           </FormField>
           <FormField label="Fuel Type">
@@ -283,7 +289,7 @@ const VehicleManagement = () => {
               {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
             </Select>
           </FormField>
-          <FormField label="Year">
+          <FormField label="Year" error={formErrors.year}>
             <Input value={form.year} onChange={e => setForm(p => ({ ...p, year: e.target.value }))} placeholder="2020" type="number" min="1990" max="2030" />
           </FormField>
           <FormField label="Fleet Tag" className="sm:col-span-2">

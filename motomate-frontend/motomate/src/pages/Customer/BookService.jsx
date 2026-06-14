@@ -32,7 +32,17 @@ const BookService = () => {
         hasRef.current = true;
         const getUser = async () => {
             const responseData = await fetchUser();
-            setFormData(prev => ({ ...prev, userId: responseData.userId }));
+            setFormData(prev => ({ 
+                ...prev, 
+                userId: responseData.userId,
+                // Store user's registered address for distance calculation
+                userAddress: {
+                    area: responseData.area || '',
+                    city: responseData.city || '',
+                    state: responseData.state || '',
+                    pinCode: responseData.pinCode || '',
+                }
+            }));
         };
         getUser();
     }, []);
@@ -42,18 +52,30 @@ const BookService = () => {
 
     const isStepValid = step => {
         switch (step) {
-            case 1:
-                if (!formData.vehicleType || !formData.selectedVehicle) return false;
-                if (formData.selectedVehicle === 'Add New')
-                    return !!(formData.brand && formData.model && formData.fuelType);
+            case 1: {
+                if (!formData.vehicleType) return false;
+                if (!formData.selectedVehicle) return false;
+                if (formData.selectedVehicle === 'Add New') {
+                    // Fix 2: All required new vehicle fields must be filled
+                    if (!formData.brand || !formData.model || !formData.fuelType) return false;
+                    // Validate vehicle number format if provided
+                    if (formData.vehicleNumber) {
+                        const num = formData.vehicleNumber.replace(/[-\s]/g, '').toUpperCase();
+                        if (!/^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{1,4}$/.test(num)) return false;
+                    }
+                }
                 return true;
+            }
             case 2:
                 return (formData.selectedServiceNames || []).length > 0;
             case 3:
                 return !!formData.serviceCenterId;
             case 4:
                 if (!formData.serviceLocation || !formData.serviceMode) return false;
-                if (formData.serviceLocation === 'Manual' && !formData.manualAddress) return false;
+                if (formData.serviceLocation === 'Manual') {
+                    if (!formData.manualAddress) return false;
+                    if (!formData.addressVerified) return false;
+                }
                 return true;
             case 5:
                 return !!(formData.selectedDate && formData.selectedTime);
@@ -70,7 +92,7 @@ const BookService = () => {
                 1: 'Please select your vehicle.',
                 2: 'Please select at least one service.',
                 3: 'Please choose a service center.',
-                4: 'Please enter location and service mode.',
+                4: 'Please enter location and service mode, and verify your address.',
                 5: 'Please pick a date and time.',
             };
             toast.error(msgs[currentStep] || 'Please fill in all required fields.');
@@ -87,10 +109,21 @@ const BookService = () => {
                                   + (formData.urgency === 'Emergency' ? 200 : 0);
             const totalDuration = serviceObjects.reduce((s, o) => s + (o.durationMinutes || 0), 0);
 
+            // Fix 3: Compute actual vehicle display name instead of "Add New"
+            let vehicleDisplayName = formData.selectedVehicle;
+            if (formData.selectedVehicle === 'Add New' || !formData.selectedVehicle) {
+                // Build a proper name from brand + model + fuel
+                const parts = [formData.brand, formData.model].filter(Boolean);
+                vehicleDisplayName = parts.length > 0
+                    ? parts.join(' ') + (formData.fuelType ? ` (${formData.fuelType})` : '')
+                    : 'New Vehicle';
+            }
+
             const payload = {
                 userId:               formData.userId,
                 vehicleType:          formData.vehicleType,
-                selectedVehicle:      formData.selectedVehicle,
+                // Fix 3: Use computed display name, never "Add New"
+                selectedVehicle:      vehicleDisplayName,
                 brand:                formData.brand,
                 model:                formData.model,
                 fuelType:             formData.fuelType,
@@ -100,7 +133,15 @@ const BookService = () => {
                 serviceCenterName:    formData.serviceCenterName,
                 // Resolved service IDs + names
                 selectedServiceIds:   formData.selectedServices,
-                selectedServiceNames: (formData.selectedServiceObjects || []).map(s => s.name),
+                // Merge resolved SCO service names with any custom names the user typed.
+                // Custom services won't appear in selectedServiceObjects (no matching SCO record),
+                // so we take the union of both to avoid dropping custom names from the payload.
+                selectedServiceNames: (() => {
+                    const resolved = (formData.selectedServiceObjects || []).map(s => s.name);
+                    const all      = formData.selectedServiceNames || [];
+                    const extras   = all.filter(n => !resolved.some(r => r.toLowerCase() === n.toLowerCase()));
+                    return [...resolved, ...extras];
+                })(),
                 totalEstimatedPrice:  totalPrice,
                 totalEstimatedDuration: totalDuration,
                 // Location

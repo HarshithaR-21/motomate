@@ -210,6 +210,27 @@ public class CustomerService {
         return customerServiceRepository.findAll();
     }
 
+    // 2b. Get distinct vehicles previously used for service bookings by this customer
+    public List<java.util.Map<String, Object>> getPreviousVehicles(String userId) {
+        List<CustomerServiceModel> myServices = customerServiceRepository.findByUserIdOrderByCreatedAtDesc(userId);
+
+        java.util.LinkedHashMap<String, java.util.Map<String, Object>> distinct = new java.util.LinkedHashMap<>();
+        for (CustomerServiceModel s : myServices) {
+            if (s.getVehicleNumber() == null || s.getVehicleNumber().isBlank()) continue;
+            String key = s.getVehicleNumber().trim().toUpperCase();
+            distinct.computeIfAbsent(key, k -> {
+                java.util.Map<String, Object> v = new java.util.HashMap<>();
+                v.put("vehicleNumber", s.getVehicleNumber());
+                v.put("brand", s.getBrand());
+                v.put("model", s.getModel());
+                v.put("vehicleType", s.getVehicleType());
+                v.put("fuelType", s.getFuelType());
+                return v;
+            });
+        }
+        return new java.util.ArrayList<>(distinct.values());
+    }
+
     // 3. Edit service
     public CustomerServiceModel editService(String id, CustomerServiceModel updatedService) {
         Optional<CustomerServiceModel> existingOpt = customerServiceRepository.findById(id);

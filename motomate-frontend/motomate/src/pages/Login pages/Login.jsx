@@ -149,6 +149,36 @@ const LoginForm = ({ role }) => {
     try {
       const res = await axios.post(cfg.apiUrl, formData, { withCredentials: true });
       console.log(res.data);
+
+      // LoginResponse sends { userId, email, name, role, token }
+      const { userId, email: userEmail, name, role, token } = res.data || {};
+      const resolvedId = userId || res.data?.id;
+
+      if (resolvedId) {
+        // Store unified user object (used by SOS and other modules)
+        localStorage.setItem('user', JSON.stringify({
+          id: resolvedId,
+          email: userEmail,
+          name,
+          role,
+        }));
+
+        // Legacy keys kept for backward compat with existing pages
+        localStorage.setItem('userId', resolvedId);
+        localStorage.setItem('userRole', role || '');
+        localStorage.setItem('userName', name || '');
+
+        if (token) {
+          localStorage.setItem('token', token);
+          document.cookie = `token=${encodeURIComponent(token)}; path=/; samesite=lax`;
+        }
+
+        // Fleet manager specific key used by fleetApi.js
+        if (role === 'FLEET_MANAGER' || cfg.label === 'Fleet Manager') {
+          localStorage.setItem('fleetManagerId', resolvedId);
+        }
+      }
+
       toast.success('Login successful!');
       navigate(cfg.dashboardPath);
     } catch (err) {

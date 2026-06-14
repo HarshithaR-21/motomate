@@ -5,6 +5,7 @@ import com.majorproject.motomate.model.SCOServiceRequest;
 import com.majorproject.motomate.model.SCOWorker;
 import com.majorproject.motomate.realtime.SseNotificationService;
 import com.majorproject.motomate.repository.CustomerServiceRepository;
+import com.majorproject.motomate.repository.FleetServiceRepository;
 import com.majorproject.motomate.repository.SCOWorkerRepository;
 import com.majorproject.motomate.repository.WorkerServiceRequestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +40,9 @@ public class WorkerService {
 
     @Autowired
     private CustomerServiceRepository customerServiceRepository;
+
+    @Autowired
+    private FleetServiceRepository fleetServiceRepository;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
 
@@ -122,6 +126,7 @@ public class WorkerService {
                     booking.setStatus("IN_PROGRESS");
                     customerServiceRepository.save(booking);
                 });
+        syncFleetServiceForJob(job);
 
         worker.setAvailability("BUSY");
         workerRepo.save(worker);
@@ -181,6 +186,7 @@ public class WorkerService {
         job.setAssignedWorkerName(null);
         job.setCancellationReason("Worker rejected: " + reason.trim());
         requestRepo.save(job);
+        syncFleetServiceForJob(job);
 
         return JobActionResponse.builder()
                 .jobId(jobId)
@@ -218,6 +224,7 @@ public class WorkerService {
                     booking.setStatus(newStatus);
                     customerServiceRepository.save(booking);
                 });
+        syncFleetServiceForJob(job);
 
         String workerNewStatus = worker.getAvailability();
         if ("COMPLETED".equals(newStatus)) {
@@ -264,6 +271,18 @@ public class WorkerService {
             case "COMPLETED":       return "Service completed successfully!";
             default:                return "Status updated to " + status;
         }
+    }
+
+    private void syncFleetServiceForJob(SCOServiceRequest job) {
+        fleetServiceRepository.findByScoRequestId(job.getId()).ifPresent(fs -> {
+            fs.setStatus(job.getStatus());
+            fs.setAssignedWorkerId(job.getAssignedWorkerId());
+            fs.setAssignedWorker(job.getAssignedWorkerName());
+            if ("COMPLETED".equals(job.getStatus())) {
+                fs.setCompletedAt(LocalDateTime.now());
+            }
+            fleetServiceRepository.save(fs);
+        });
     }
 
     // ── Job History ────────────────────────────────────────────────────────────

@@ -102,36 +102,46 @@ const FleetManagerSignup = () => {
 
     const validateStep = () => {
         const e = {};
+        const PHONE_RE = /^[6-9]\d{9}$/;
+        const PAN_RE   = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+        const GST_RE   = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
         if (step === 1) {
-            if (!form.managerName.trim()) e.managerName = 'Required';
-            if (!form.email.match(/^\S+@\S+\.\S+$/)) e.email = 'Valid email required';
-            if (!form.phone.match(/^\d{10}$/)) e.phone = '10-digit phone required';
+            if (!form.managerName.trim()) e.managerName = 'Full name is required';
+            if (!form.email.trim()) e.email = 'Email is required';
+            else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Enter a valid email address';
+            if (!form.phone.trim()) e.phone = 'Phone number is required';
+            else if (!PHONE_RE.test(form.phone)) e.phone = 'Enter a valid 10-digit Indian mobile number (starts with 6-9)';
             const passwordValidation = validatePassword(form.password);
             if (!form.password) {
                 e.password = 'Password is required';
             } else if (!passwordValidation.minLength) {
                 e.password = 'Password must be at least 8 characters';
             } else if (!passwordValidation.hasUpper || !passwordValidation.hasLower || !passwordValidation.hasNumber || !passwordValidation.hasSpecial) {
-                e.password = 'Password must include uppercase, lowercase, number, and special character';
+                e.password = 'Must include uppercase, lowercase, number & special character';
             }
             if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match';
         }
         if (step === 2) {
-            if (!form.companyName.trim()) e.companyName = 'Required';
-            if (!form.industryType) e.industryType = 'Required';
-            if (!form.companyAddress.trim()) e.companyAddress = 'Required';
-            if (!form.city.trim()) e.city = 'Required';
-            if (!form.state.trim()) e.state = 'Required';
-            if (!form.pincode.match(/^\d{6}$/)) e.pincode = '6-digit pincode required';
+            if (!form.companyName.trim()) e.companyName = 'Company name is required';
+            if (!form.industryType) e.industryType = 'Please select an industry type';
+            if (!form.companyAddress.trim()) e.companyAddress = 'Company address is required';
+            if (!form.city.trim()) e.city = 'City is required';
+            if (!form.state.trim()) e.state = 'State is required';
+            if (!form.pincode.trim()) e.pincode = 'Pincode is required';
+            else if (!/^\d{6}$/.test(form.pincode)) e.pincode = 'Enter a valid 6-digit pincode';
         }
         if (step === 3) {
-            if (!form.totalVehicles || form.totalVehicles < 1) e.totalVehicles = 'Enter a valid count';
-            if (form.vehicleCategories.length === 0) e.vehicleCategories = 'Select at least one category';
+            if (!form.totalVehicles || form.totalVehicles < 1) e.totalVehicles = 'Enter a valid vehicle count (min 1)';
+            else if (isNaN(form.totalVehicles)) e.totalVehicles = 'Must be a number';
+            if (form.vehicleCategories.length === 0) e.vehicleCategories = 'Select at least one vehicle category';
             if (form.serviceNeeds.length === 0) e.serviceNeeds = 'Select at least one service need';
         }
         if (step === 4) {
-            if (!form.gstNumber.trim()) e.gstNumber = 'Required';
-            if (!form.panNumber.trim()) e.panNumber = 'Required';
+            if (!form.gstNumber.trim()) e.gstNumber = 'GST number is required';
+            else if (!GST_RE.test(form.gstNumber.toUpperCase())) e.gstNumber = 'Invalid GST format (e.g. 29ABCDE1234F1Z5)';
+            if (!form.panNumber.trim()) e.panNumber = 'PAN number is required';
+            else if (!PAN_RE.test(form.panNumber.toUpperCase())) e.panNumber = 'Invalid PAN format (e.g. ABCDE1234F)';
         }
         setErrors(e);
         return Object.keys(e).length === 0;

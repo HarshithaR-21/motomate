@@ -174,7 +174,15 @@ function BookingCard({
               <Car size={20} className="text-blue-500" />
             </div>
             <div>
-              <p className="font-bold text-gray-900">{booking.selectedVehicle || booking.brand || "Vehicle"}</p>
+              <p className="font-bold text-gray-900">
+                {/* Fix 3: Show proper vehicle name, never "Add New" */}
+                {(booking.selectedVehicle && booking.selectedVehicle !== 'Add New')
+                  ? booking.selectedVehicle
+                  : [booking.brand, booking.model].filter(Boolean).join(' ')
+                      + (booking.fuelType ? ` (${booking.fuelType})` : '')
+                  || booking.vehicleNumber
+                  || 'Vehicle'}
+              </p>
               <p className="text-gray-500 text-xs">{booking.vehicleNumber || "—"}</p>
             </div>
           </div>

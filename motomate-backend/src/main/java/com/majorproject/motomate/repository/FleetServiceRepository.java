@@ -24,4 +24,7 @@ public interface FleetServiceRepository extends MongoRepository<FleetService, St
     long countByFleetManagerIdAndStatus(String fleetManagerId, String status);
 
     List<FleetService> findByBulkBatchId(String batchId);
+
+    // Used by SCOOwnerService to sync worker assignment & status back to FleetService
+    java.util.Optional<FleetService> findByScoRequestId(String scoRequestId);
 }

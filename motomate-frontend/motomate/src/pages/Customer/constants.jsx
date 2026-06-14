@@ -1,6 +1,60 @@
 import React from 'react';
 import { Wrench, CalendarDays, AlertCircle, ShieldCheck, Zap, AlertTriangle, Star } from 'lucide-react';
 
+// Vehicle type-specific brands
+export const VEHICLE_BRANDS = {
+    Car: [
+        'Hyundai', 'Honda Cars', 'Toyota', 'Tata', 'Maruti Suzuki', 
+        'Mahindra', 'Kia', 'MG', 'Skoda', 'Volkswagen', 
+        'Renault', 'Nissan', 'Ford', 'Chevrolet', 'BMW',
+        'Mercedes-Benz', 'Audi', 'Jaguar', 'Land Rover', 'Volvo'
+    ],
+    Bike: [
+        'Honda Bikes', 'Yamaha', 'Bajaj', 'TVS', 'Royal Enfield',
+        'KTM', 'Suzuki', 'Hero', 'Kawasaki', 'Ducati',
+        'Benelli', 'Triumph', 'Harley-Davidson', 'Indian', 'BMW Motorrad'
+    ]
+};
+
+// Vehicle models by brand (simplified for demo - can be expanded)
+export const VEHICLE_MODELS = {
+    'Hyundai': ['i20', 'Creta', 'Verna', 'Venue', 'Alcazar', 'Tucson'],
+    'Honda Cars': ['City', 'Amaze', 'Civic', 'CR-V', 'HR-V'],
+    'Toyota': ['Innova', 'Fortuner', 'Camry', 'Corolla', 'Hilux'],
+    'Tata': ['Nexon', 'Harrier', 'Safari', 'Altroz', 'Punch'],
+    'Maruti Suzuki': ['Swift', 'Baleno', 'Dzire', 'Vitara Brezza', 'Ertiga'],
+    'Mahindra': ['Thar', 'XUV700', 'Scorpio', 'XUV300', 'Bolero'],
+    'Kia': ['Seltos', 'Sonet', 'Seltos', 'Carnival', 'EV6'],
+    'MG': ['Hector', 'Astor', 'Gloster', 'ZS EV', 'Comet'],
+    'Skoda': ['Octavia', 'Superb', 'Slavia', 'Kushaq', 'Kodiaq'],
+    'Volkswagen': ['Polo', 'Vento', 'Taigun', 'Tiguan', 'Virtus'],
+    'Renault': ['Kwid', 'Triber', 'Duster', 'Kiger', 'Captur'],
+    'Nissan': ['Magnite', 'Kick', 'Sunny', 'Terrano', 'Leaf'],
+    'Ford': ['EcoSport', 'Figo', 'Endeavour', 'Mustang', 'Aspire'],
+    'Chevrolet': ['Beat', 'Sail', 'Cruze', 'Enjoy', 'Trailblazer'],
+    'BMW': ['3 Series', '5 Series', 'X3', 'X5', '7 Series'],
+    'Mercedes-Benz': ['C-Class', 'E-Class', 'S-Class', 'GLC', 'GLE'],
+    'Audi': ['A4', 'A6', 'Q3', 'Q5', 'Q7'],
+    'Jaguar': ['XE', 'XF', 'F-Pace', 'F-Type', 'I-Pace'],
+    'Land Rover': ['Range Rover', 'Discovery', 'Defender', 'Evoque', 'Velar'],
+    'Volvo': ['XC40', 'XC60', 'XC90', 'S60', 'S90'],
+    'Honda Bikes': ['Activa', 'Dio', 'Shine', 'Unicorn', 'CBR'],
+    'Yamaha': ['MT-15', 'R15', 'FZ', 'Ray ZR', 'Fascino'],
+    'Bajaj': ['Pulsar', 'Dominar', 'Avenger', 'CT 100', 'Platina'],
+    'TVS': ['Apache', 'Jupiter', 'Sport', 'Radeon', 'Wego'],
+    'Royal Enfield': ['Classic 350', 'Bullet 350', 'Himalayan', 'Interceptor', 'Meteor'],
+    'KTM': ['Duke 200', 'Duke 390', 'RC 200', 'RC 390', 'Adventure'],
+    'Suzuki': ['Gixxer', 'Access', 'Hayabusa', 'Burgman', 'V-Strom'],
+    'Hero': ['Splendor', 'Passion', 'HF Deluxe', 'Glamour', 'Xpulse'],
+    'Kawasaki': ['Ninja', 'Z900', 'Vulcan', 'Versys', 'KLR650'],
+    'Ducati': ['Panigale', 'Monster', 'Multistrada', 'Diavel', 'Scrambler'],
+    'Benelli': ['TNT', 'TRK', 'Leoncino', 'Imperiale', '502C'],
+    'Triumph': ['Bonneville', 'Tiger', 'Street Triple', 'Daytona', 'Rocket'],
+    'Harley-Davidson': ['Street 750', 'Iron 883', 'Fat Boy', 'Road King', 'Ultra Classic'],
+    'Indian': ['Scout', 'Chief', 'Chieftain', 'Roadmaster', 'FTR'],
+    'BMW Motorrad': ['G 310', 'S 1000', 'R 1250', 'K 1600', 'F 900']
+};
+
 // Fallback static services (used in Estimate & Confirm if no live services loaded yet)
 export const SERVICE_OPTIONS = [
     { id: 'General Service',      label: 'General Service',      price: 500,  icon: <Wrench size={20} /> },
@@ -30,6 +84,8 @@ export const STEPS = [
 
 export const INITIAL_FORM = {
     userId:                 '',
+    // User's registered address (for distance calculation in Step 3)
+    userAddress:            { area: '', city: '', state: '', pinCode: '' },
     // Step 1 – Vehicle
     vehicleType:            '',
     selectedVehicle:        '',

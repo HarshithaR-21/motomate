@@ -4,18 +4,31 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Car, Building, MapPin, Phone, Mail, Lock, User, Clock,
   Wrench, ChevronRight, ChevronLeft, Upload, CheckCircle,
-  Globe, FileText, Star, Camera
+  Globe, FileText, Star, Camera, AlertCircle, Loader2
 } from 'lucide-react';
 import { validatePassword } from '../utils/passwordValidation';
-import {toast, Toaster} from 'react-hot-toast'
+
+// ── Nominatim autocomplete (OpenStreetMap — free, no API key) ──────────────────
+async function searchAddresses(query) {
+  if (!query || query.length < 5) return [];
+  try {
+    const q = encodeURIComponent(query + ', India');
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=6&addressdetails=1&countrycodes=in`,
+      { headers: { 'Accept-Language': 'en' } }
+    );
+    return await res.json();
+  } catch { return []; }
+}
+import { toast, Toaster } from 'react-hot-toast';
 import axios from 'axios';
 import { Spinner } from '../Admin/components/UI';
 
 const STEPS = [
-  { id: 1, label: 'Owner Info', icon: User },
+  { id: 1, label: 'Owner Info',     icon: User     },
   { id: 2, label: 'Center Details', icon: Building },
   { id: 3, label: 'Services & Hours', icon: Wrench },
-  { id: 4, label: 'Documents', icon: FileText },
+  { id: 4, label: 'Documents',      icon: FileText },
 ];
 
 const SERVICE_TYPES = [
@@ -24,45 +37,116 @@ const SERVICE_TYPES = [
   'Engine Repair', 'Transmission Repair', 'EV Servicing', 'Roadside Assistance',
 ];
 
+// Vehicle types shown in Step 3
 const VEHICLE_TYPES = ['Cars', 'Bikes', 'Trucks', 'Buses', 'EVs', 'Auto Rickshaws'];
 
+// Car & Bike brands the center can select as specialties
+const CAR_BRANDS = [
+  'Hyundai', 'Tata', 'Maruti Suzuki', 'Honda Cars', 'Toyota', 'Kia', 'MG',
+  'Volkswagen', 'Skoda', 'Renault', 'Nissan', 'Ford', 'Jeep', 'Mahindra',
+];
+const BIKE_BRANDS = [
+  'Honda Bikes', 'Yamaha', 'Hero', 'Bajaj', 'TVS', 'KTM',
+  'Royal Enfield', 'Suzuki', 'Kawasaki',
+];
+
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+// ── Validation helpers ────────────────────────────────────────────────────────
+const GST_REGEX  = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+const PAN_REGEX  = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+const PHONE_REGEX = /^[6-9]\d{9}$/;
+
+// ── Geocode address using Nominatim (OpenStreetMap – free, no key needed) ─────
+// FIX: a single, overly-specific query (full street address + city + state + pincode)
+// frequently returns ZERO results from Nominatim, because it requires a fairly
+// exact match. We now try several queries, from most to least specific, and use
+// the structured `q=...&city=...&state=...&postalcode=...` form (which Nominatim
+// matches more leniently) before falling back to a free-text query.
+async function geocodeOne(params) {
+  try {
+    const q = new URLSearchParams({
+      format: 'json',
+      limit: '1',
+      countrycodes: 'in',
+      ...params,
+    });
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?${q.toString()}`,
+      { headers: { 'Accept-Language': 'en' } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data && data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function geocodeAddress(address, city, state, pincode) {
+  // 1. Structured query (most accurate when it matches)
+  let result = await geocodeOne({
+    street: address,
+    city,
+    state,
+    postalcode: pincode,
+  });
+  if (result) return result;
+
+  // 2. Full free-text query
+  result = await geocodeOne({
+    q: `${address}, ${city}, ${state} ${pincode}, India`,
+  });
+  if (result) return result;
+
+  // 3. Drop the pincode — pincodes are often slightly off / not indexed
+  result = await geocodeOne({
+    q: `${address}, ${city}, ${state}, India`,
+  });
+  if (result) return result;
+
+  // 4. Try just the first segment of the address (e.g. landmark/road) + city
+  const firstSegment = address.split(',')[0].trim();
+  if (firstSegment && firstSegment.toLowerCase() !== city.toLowerCase()) {
+    result = await geocodeOne({
+      q: `${firstSegment}, ${city}, ${state}, India`,
+    });
+    if (result) return result;
+  }
+
+  // 5. Last resort — just the city/state, so the center still appears on the map
+  //    near the right area even if the exact street can't be matched.
+  result = await geocodeOne({
+    q: `${city}, ${state}, India`,
+  });
+  return result;
+}
 
 const ServiceCenterSignup = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [addressSearching, setAddressSearching] = useState(false);
+  const [addressSearchTimer, setAddressSearchTimer] = useState(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [form, setForm] = useState({
-    // Step 1 – Owner
-    ownerName: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-    // Step 2 – Center
-    centerName: '',
-    centerType: '',
-    address: '',
-    city: '',
-    state: '',
-    pincode: '',
-    landmark: '',
-    website: '',
-    description: '',
-    // Step 3 – Services
-    services: [],
-    vehicleTypes: [],
-    openDays: [],
-    openTime: '09:00',
-    closeTime: '19:00',
-    emergencyService: false,
-    // Step 4 – Docs
-    gstNumber: '',
-    panNumber: '',
-    licenseNumber: '',
-    yearsInBusiness: '',
-    totalBays: '',
+    // Step 1
+    ownerName: '', email: '', phone: '', password: '', confirmPassword: '',
+    // Step 2
+    centerName: '', centerType: '', address: '', city: '', state: '',
+    pincode: '', landmark: '', website: '', description: '',
+    latitude: null, longitude: null,
+    // Step 3
+    services: [], vehicleTypes: [], supportedBrands: [],
+    openDays: [], openTime: '09:00', closeTime: '19:00', emergencyService: false,
+    // Step 4
+    gstNumber: '', panNumber: '', licenseNumber: '', yearsInBusiness: '', totalBays: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -81,122 +165,169 @@ const ServiceCenterSignup = () => {
     }));
   };
 
+  // ── Per-step validation ───────────────────────────────────────────────────
   const validateStep = () => {
     const e = {};
+
     if (step === 1) {
-      if (!form.ownerName.trim()) e.ownerName = 'Required';
-      if (!form.email.match(/^\S+@\S+\.\S+$/)) e.email = 'Valid email required';
-      if (!form.phone.match(/^\d{10}$/)) e.phone = '10-digit phone required';
-      const passwordValidation = validatePassword(form.password);
-      if (!form.password) {
-        e.password = 'Password is required';
-      } else if (!passwordValidation.minLength) {
-        e.password = 'Password must be at least 8 characters';
-      } else if (!passwordValidation.hasUpper || !passwordValidation.hasLower || !passwordValidation.hasNumber || !passwordValidation.hasSpecial) {
-        e.password = 'Password must include uppercase, lowercase, number, and special character';
-      }
+      if (!form.ownerName.trim()) e.ownerName = 'Full name is required';
+      if (!form.email.trim()) e.email = 'Email is required';
+      else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Enter a valid email address';
+      if (!form.phone.trim()) e.phone = 'Phone number is required';
+      else if (!PHONE_REGEX.test(form.phone)) e.phone = 'Enter a valid 10-digit Indian mobile number';
+      const pw = validatePassword(form.password);
+      if (!form.password) e.password = 'Password is required';
+      else if (!pw.minLength) e.password = 'Password must be at least 8 characters';
+      else if (!pw.hasUpper || !pw.hasLower || !pw.hasNumber || !pw.hasSpecial)
+        e.password = 'Must include uppercase, lowercase, number & special character';
       if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match';
     }
+
     if (step === 2) {
-      if (!form.centerName.trim()) e.centerName = 'Required';
-      if (!form.address.trim()) e.address = 'Required';
-      if (!form.city.trim()) e.city = 'Required';
-      if (!form.state.trim()) e.state = 'Required';
-      if (!form.pincode.match(/^\d{6}$/)) e.pincode = '6-digit pincode required';
+      if (!form.centerName.trim()) e.centerName = 'Center name is required';
+      if (!form.centerType) e.centerType = 'Please select a center type';
+      if (!form.address.trim()) e.address = 'Full address is required — customers use this to locate you';
+      if (!form.city.trim()) e.city = 'City is required';
+      if (!form.state.trim()) e.state = 'State is required';
+      if (!form.pincode.trim()) e.pincode = 'Pincode is required';
+      else if (!/^\d{6}$/.test(form.pincode)) e.pincode = 'Enter a valid 6-digit pincode';
     }
+
     if (step === 3) {
-      if (form.services.length === 0) e.services = 'Select at least one service';
+      if (form.services.length === 0) e.services = 'Select at least one service you offer';
       if (form.vehicleTypes.length === 0) e.vehicleTypes = 'Select at least one vehicle type';
       if (form.openDays.length === 0) e.openDays = 'Select at least one working day';
+      if (form.openTime >= form.closeTime) e.closeTime = 'Closing time must be after opening time';
     }
+
     if (step === 4) {
-      if (!form.gstNumber.trim()) e.gstNumber = 'Required';
-      if (!form.panNumber.trim()) {
-        e.panNumber = 'Required';
-      } else if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(form.panNumber)) {
-        e.panNumber = 'Invalid PAN format (e.g. ABCDE1234F) — 5 letters, 4 digits, 1 letter';
-      }
-      if (!form.licenseNumber.trim()) e.licenseNumber = 'Required';
+      if (!form.gstNumber.trim()) e.gstNumber = 'GST number is required';
+      else if (!GST_REGEX.test(form.gstNumber.toUpperCase()))
+        e.gstNumber = 'Invalid GST format (e.g. 29ABCDE1234F1Z5)';
+      if (!form.panNumber.trim()) e.panNumber = 'PAN number is required';
+      else if (!PAN_REGEX.test(form.panNumber.toUpperCase()))
+        e.panNumber = 'Invalid PAN format (e.g. ABCDE1234F)';
+      if (!form.licenseNumber.trim()) e.licenseNumber = 'Trade/shop license number is required';
+      if (form.yearsInBusiness && (isNaN(form.yearsInBusiness) || Number(form.yearsInBusiness) < 0))
+        e.yearsInBusiness = 'Enter a valid number';
+      if (form.totalBays && (isNaN(form.totalBays) || Number(form.totalBays) < 1))
+        e.totalBays = 'Must be at least 1';
     }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const next = () => { if (validateStep()) setStep(s => s + 1); };
+  // Address autocomplete handler
+  const handleAddressInput = (value) => {
+    update('address', value);
+    if (addressSearchTimer) clearTimeout(addressSearchTimer);
+    if (value.length < 5) { setAddressSuggestions([]); setShowSuggestions(false); return; }
+    setAddressSearching(true);
+    setShowSuggestions(true);
+    const timer = setTimeout(async () => {
+      const results = await searchAddresses(value);
+      setAddressSuggestions(results);
+      setAddressSearching(false);
+    }, 400);
+    setAddressSearchTimer(timer);
+  };
+
+  const selectAddressSuggestion = (suggestion) => {
+    const addr = suggestion.address;
+    // Fill in address components from the selected suggestion
+    update('address', suggestion.display_name.split(',')[0].trim() +
+      (addr.road ? ', ' + addr.road : '') +
+      (addr.suburb || addr.neighbourhood ? ', ' + (addr.suburb || addr.neighbourhood) : ''));
+    // Prefer proper city/town/district names over the raw village/hamlet,
+    // since Nominatim often only returns a village for the queried point
+    // while the actual city/district lives in city_district / county / state_district.
+    const cityValue =
+      addr.city || addr.town ||
+      addr.municipality || addr.city_district ||
+      addr.county || addr.state_district ||
+      addr.village || addr.hamlet || addr.suburb;
+    if (cityValue) update('city', cityValue);
+    if (addr.state) update('state', addr.state);
+    if (addr.postcode) update('pincode', addr.postcode.replace(/\s/g, ''));
+    // Store geocoords from the suggestion directly — no extra API call needed
+    if (suggestion.lat && suggestion.lon) {
+      setForm(f => ({ ...f, latitude: parseFloat(suggestion.lat), longitude: parseFloat(suggestion.lon) }));
+    }
+    setAddressSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  const next = async () => {
+    if (!validateStep()) return;
+    // After Step 2, geocode the address to get lat/lng for map display
+    if (step === 2 && form.address && form.city) {
+      setGeocoding(true);
+      const coords = await geocodeAddress(form.address, form.city, form.state, form.pincode);
+      if (coords) {
+        setForm(f => ({ ...f, latitude: coords.lat, longitude: coords.lng }));
+        toast.success('Location pinned on map ✓', { duration: 2000 });
+      } else {
+        toast('Could not auto-locate address — you can still register.', { icon: '⚠️', duration: 3000 });
+      }
+      setGeocoding(false);
+    }
+    setStep(s => s + 1);
+  };
   const back = () => setStep(s => s - 1);
 
   const [apiError, setApiError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const handleSubmit = async () => {
+    if (!validateStep()) return;
+    setLoading(true);
+    setApiError('');
 
+    try {
+      const { gstCertificateFile, tradeLicenseFile, shopPhotoFile, ...jsonFields } = form;
+      const formData = new FormData();
+      formData.append('data', new Blob([JSON.stringify(jsonFields)], { type: 'application/json' }));
+      if (gstCertificateFile) formData.append('gstCertificate', gstCertificateFile);
+      if (tradeLicenseFile)   formData.append('tradeLicense',   tradeLicenseFile);
+      if (shopPhotoFile)      formData.append('shopPhoto',      shopPhotoFile);
 
-const handleSubmit = async () => {
-  if (!validateStep()) return;
+      const response = await axios.post(
+        'http://localhost:8080/api/v1/service-centers/register',
+        formData,
+        { withCredentials: true }
+      );
 
-  setLoading(true);
-  setApiError('');
-
-  try {
-    // Destructure File objects out so they don't get into the JSON blob
-    const { gstCertificateFile, tradeLicenseFile, shopPhotoFile, ...jsonFields } = form;
-
-    const formData = new FormData();
-
-    // 'data' part — pure JSON, matches @RequestPart("data") on Spring side
-    formData.append(
-      'data',
-      new Blob([JSON.stringify(jsonFields)], { type: 'application/json' })
-    );
-
-    // File parts — each matches a @RequestPart("gstCertificate") etc.
-    if (gstCertificateFile) formData.append('gstCertificate', gstCertificateFile);
-    if (tradeLicenseFile)   formData.append('tradeLicense',   tradeLicenseFile);
-    if (shopPhotoFile)      formData.append('shopPhoto',      shopPhotoFile);
-
-    // Do NOT set Content-Type header — let the browser set it with the boundary
-    const response = await axios.post(
-      'http://localhost:8080/api/v1/service-centers/register',
-      formData,
-      { withCredentials: true }
-    );
-
-    if (response.data?.success) {
-      setSubmitted(true);
-      toast.success('Request has been sent. Please wait for reply from our side!');
-    } else {
-      const msg = response.data?.message || 'Submission failed. Please try again.';
+      if (response.data?.success) {
+        setSubmitted(true);
+        toast.success('Application submitted!');
+      } else {
+        const msg = response.data?.message || 'Submission failed. Please try again.';
+        setApiError(msg);
+        toast.error(msg);
+      }
+    } catch (err) {
+      const fieldErrors = err.response?.data?.data;
+      if (fieldErrors && typeof fieldErrors === 'object') {
+        setErrors(prev => ({ ...prev, ...fieldErrors }));
+        const stepMap = {
+          ownerName: 1, email: 1, phone: 1, password: 1, confirmPassword: 1,
+          centerName: 2, centerType: 2, address: 2, city: 2, state: 2, pincode: 2,
+          services: 3, vehicleTypes: 3, openDays: 3,
+          gstNumber: 4, panNumber: 4, licenseNumber: 4,
+        };
+        const firstStep = Object.keys(fieldErrors).map(f => stepMap[f]).filter(Boolean).sort()[0];
+        if (firstStep) setStep(firstStep);
+      }
+      const msg = err.response?.data?.message || 'Unable to connect to the server.';
       setApiError(msg);
       toast.error(msg);
+    } finally {
+      setLoading(false);
     }
+  };
 
-  } catch (err) {
-    // If Spring returns field-level errors in data, pin them onto the form fields
-    const fieldErrors = err.response?.data?.data;
-    if (fieldErrors && typeof fieldErrors === 'object') {
-      setErrors(prev => ({ ...prev, ...fieldErrors }));
-      // Navigate back to the step that owns the failing field
-      const fieldStepMap = {
-        ownerName: 1, email: 1, phone: 1, password: 1, confirmPassword: 1,
-        centerName: 2, centerType: 2, address: 2, city: 2, state: 2, pincode: 2,
-        services: 3, vehicleTypes: 3, openDays: 3, openTime: 3, closeTime: 3,
-        gstNumber: 4, panNumber: 4, licenseNumber: 4,
-      };
-      const firstFailingStep = Object.keys(fieldErrors)
-        .map(f => fieldStepMap[f])
-        .filter(Boolean)
-        .sort()[0];
-      if (firstFailingStep) setStep(firstFailingStep);
-    }
-    const msg = err.response?.data?.message
-      || 'Unable to connect to the server. Please check your internet connection.';
-    setApiError(msg);
-    toast.error(msg);
-
-  } finally {
-    setLoading(false);
-  }
-};
-
+  // ── Success screen ────────────────────────────────────────────────────────
   if (submitted) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -210,11 +341,11 @@ const handleSubmit = async () => {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-3">Application Submitted!</h2>
           <p className="text-gray-600 mb-8">
-            Your service center registration is under review. We'll verify your documents and
-            notify you at <strong>{form.email}</strong> within 2–3 business days.
+            Your service center registration is under review. We'll notify you at{' '}
+            <strong>{form.email}</strong> within 2–3 business days.
           </p>
           <Link to="/">
-            <button className="w-full bg-linear-to-r from-blue-500 to-blue-600 text-white py-3.5 rounded-xl font-semibold hover:opacity-90 transition-opacity">
+            <button className="w-full bg-lineart-to-r from-blue-500 to-blue-600 text-white py-3.5 rounded-xl font-semibold hover:opacity-90 transition-opacity">
               Back to Home
             </button>
           </Link>
@@ -226,11 +357,10 @@ const handleSubmit = async () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster />
-      {/* Top Bar */}
       <nav className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-linear-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-9 h-9 bg-lineart-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
               <Car size={20} className="text-white" />
             </div>
             <span className="font-bold text-gray-900 text-lg">Moto<span className="text-blue-500">Mate</span></span>
@@ -240,11 +370,11 @@ const handleSubmit = async () => {
       </nav>
 
       <div className="max-w-4xl mx-auto px-4 py-10">
-        {/* Step Indicators */}
+        {/* Step indicators */}
         <div className="flex items-center justify-between mb-10 relative">
           <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 z-0" />
           <div
-            className="absolute top-5 left-0 h-0.5 bg-linear-to-r from-blue-500 to-blue-600 z-0 transition-all duration-500"
+            className="absolute top-5 left-0 h-0.5 bg-lineart-to-r from-blue-500 to-blue-600 z-0 transition-all duration-500"
             style={{ width: `${((step - 1) / (STEPS.length - 1)) * 100}%` }}
           />
           {STEPS.map(s => {
@@ -253,19 +383,20 @@ const handleSubmit = async () => {
             const active = step === s.id;
             return (
               <div key={s.id} className="flex flex-col items-center z-10 relative">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${done ? 'bg-blue-600 border-blue-600' : active ? 'bg-white border-blue-500 shadow-md' : 'bg-white border-gray-300'}`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
+                  ${done ? 'bg-blue-600 border-blue-600' : active ? 'bg-white border-blue-500 shadow-md' : 'bg-white border-gray-300'}`}>
                   {done
                     ? <CheckCircle size={18} className="text-white" />
-                    : <Icon size={18} className={active ? 'text-blue-600' : 'text-gray-400'} />
-                  }
+                    : <Icon size={18} className={active ? 'text-blue-600' : 'text-gray-400'} />}
                 </div>
-                <span className={`text-xs mt-2 font-medium ${active ? 'text-blue-600' : done ? 'text-gray-700' : 'text-gray-400'}`}>{s.label}</span>
+                <span className={`text-xs mt-2 font-medium ${active ? 'text-blue-600' : done ? 'text-gray-700' : 'text-gray-400'}`}>
+                  {s.label}
+                </span>
               </div>
             );
           })}
         </div>
 
-        {/* Form Card */}
         <motion.div
           key={step}
           initial={{ opacity: 0, x: 30 }}
@@ -274,43 +405,56 @@ const handleSubmit = async () => {
           transition={{ duration: 0.25 }}
           className="bg-white rounded-3xl border border-gray-200 shadow-sm p-8 md:p-10"
         >
-          {/* Step 1: Owner Info */}
+          {/* ── Step 1: Owner Info ── */}
           {step === 1 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-1">Owner Information</h2>
               <p className="text-gray-500 mb-8 text-sm">Tell us about the person managing this service center.</p>
               <div className="grid md:grid-cols-2 gap-5">
-                <Field label="Full Name" icon={User} error={errors.ownerName}>
-                  <input className={input(errors.ownerName)} placeholder="John Doe" value={form.ownerName} onChange={e => update('ownerName', e.target.value)} />
+                <Field label="Full Name *" icon={User} error={errors.ownerName}>
+                  <input className={inp(errors.ownerName)} placeholder="John Doe"
+                    value={form.ownerName} onChange={e => update('ownerName', e.target.value)} />
                 </Field>
-                <Field label="Email Address" icon={Mail} error={errors.email}>
-                  <input className={input(errors.email)} type="email" placeholder="john@example.com" value={form.email} onChange={e => update('email', e.target.value)} />
+                <Field label="Email Address *" icon={Mail} error={errors.email}>
+                  <input className={inp(errors.email)} type="email" placeholder="john@example.com"
+                    value={form.email} onChange={e => update('email', e.target.value)} />
                 </Field>
-                <Field label="Phone Number" icon={Phone} error={errors.phone}>
-                  <input className={input(errors.phone)} placeholder="9876543210" maxLength={10} value={form.phone} onChange={e => update('phone', e.target.value)} />
+                <Field label="Phone Number *" icon={Phone} error={errors.phone}>
+                  <input className={inp(errors.phone)} placeholder="9876543210" maxLength={10}
+                    value={form.phone} onChange={e => update('phone', e.target.value.replace(/\D/g, ''))} />
                 </Field>
-                <div /> {/* spacer */}
-                <Field label="Password" icon={Lock} error={errors.password}>
-                  <input className={input(errors.password)} type="password" placeholder="Min. 8 characters" value={form.password} onChange={e => update('password', e.target.value)} />
+                <div />
+                <Field label="Password *" icon={Lock} error={errors.password}>
+                  <input className={inp(errors.password)} type="password" placeholder="Min. 8 characters"
+                    value={form.password} onChange={e => update('password', e.target.value)} />
                 </Field>
-                <Field label="Confirm Password" icon={Lock} error={errors.confirmPassword}>
-                  <input className={input(errors.confirmPassword)} type="password" placeholder="Re-enter password" value={form.confirmPassword} onChange={e => update('confirmPassword', e.target.value)} />
+                <Field label="Confirm Password *" icon={Lock} error={errors.confirmPassword}>
+                  <input className={inp(errors.confirmPassword)} type="password" placeholder="Re-enter password"
+                    value={form.confirmPassword} onChange={e => update('confirmPassword', e.target.value)} />
                 </Field>
               </div>
             </div>
           )}
 
-          {/* Step 2: Center Details */}
+          {/* ── Step 2: Center Details ── */}
           {step === 2 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-1">Service Center Details</h2>
-              <p className="text-gray-500 mb-8 text-sm">Provide information about your workshop or garage.</p>
+              <p className="text-gray-500 mb-2 text-sm">Provide information about your workshop or garage.</p>
+              <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl flex gap-2 text-xs text-amber-700">
+                <MapPin size={14} className="shrink-0 mt-0.5" />
+                <span>
+                  <strong>Address is critical</strong> — customers use it to find you and we'll display your center on the map.
+                  Provide the most precise address possible including street name and area.
+                </span>
+              </div>
               <div className="grid md:grid-cols-2 gap-5">
-                <Field label="Center Name" icon={Building} error={errors.centerName}>
-                  <input className={input(errors.centerName)} placeholder="e.g. Speedy Auto Works" value={form.centerName} onChange={e => update('centerName', e.target.value)} />
+                <Field label="Center Name *" icon={Building} error={errors.centerName}>
+                  <input className={inp(errors.centerName)} placeholder="e.g. Speedy Auto Works"
+                    value={form.centerName} onChange={e => update('centerName', e.target.value)} />
                 </Field>
-                <Field label="Center Type" icon={Wrench} error={errors.centerType}>
-                  <select className={input(errors.centerType)} value={form.centerType} onChange={e => update('centerType', e.target.value)}>
+                <Field label="Center Type *" icon={Wrench} error={errors.centerType}>
+                  <select className={inp(errors.centerType)} value={form.centerType} onChange={e => update('centerType', e.target.value)}>
                     <option value="">Select type</option>
                     <option>Garage / Workshop</option>
                     <option>Authorized Service Center</option>
@@ -320,24 +464,61 @@ const handleSubmit = async () => {
                   </select>
                 </Field>
                 <div className="md:col-span-2">
-                  <Field label="Full Address" icon={MapPin} error={errors.address}>
-                    <input className={input(errors.address)} placeholder="Street address" value={form.address} onChange={e => update('address', e.target.value)} />
+                  <Field label="Full Address *" icon={MapPin} error={errors.address}>
+                    <div className="relative">
+                      <input
+                        className={inp(errors.address)}
+                        placeholder="Start typing door no., street, area…"
+                        value={form.address}
+                        onChange={e => handleAddressInput(e.target.value)}
+                        onFocus={() => addressSuggestions.length > 0 && setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                        autoComplete="off"
+                      />
+                      {addressSearching && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      )}
+                      {showSuggestions && addressSuggestions.length > 0 && (
+                        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                          {addressSuggestions.map((s, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onMouseDown={() => selectAddressSuggestion(s)}
+                              className="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 border-b border-gray-100 last:border-0 transition-colors"
+                            >
+                              <p className="font-medium text-gray-800 text-xs truncate">{s.display_name}</p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                      <MapPin size={10} /> Start typing to get address suggestions — selecting one auto-fills city, state & pincode
+                    </p>
                   </Field>
                 </div>
-                <Field label="Landmark" icon={MapPin}>
-                  <input className={input()} placeholder="Near/opposite landmark" value={form.landmark} onChange={e => update('landmark', e.target.value)} />
+                <Field label="Landmark (optional)" icon={MapPin}>
+                  <input className={inp()} placeholder="Near/opposite landmark"
+                    value={form.landmark} onChange={e => update('landmark', e.target.value)} />
                 </Field>
-                <Field label="City" error={errors.city}>
-                  <input className={input(errors.city)} placeholder="Bengaluru" value={form.city} onChange={e => update('city', e.target.value)} />
+                <Field label="City *" error={errors.city}>
+                  <input className={inp(errors.city)} placeholder="Bengaluru"
+                    value={form.city} onChange={e => update('city', e.target.value)} />
                 </Field>
-                <Field label="State" error={errors.state}>
-                  <input className={input(errors.state)} placeholder="Karnataka" value={form.state} onChange={e => update('state', e.target.value)} />
+                <Field label="State *" error={errors.state}>
+                  <input className={inp(errors.state)} placeholder="Karnataka"
+                    value={form.state} onChange={e => update('state', e.target.value)} />
                 </Field>
-                <Field label="Pincode" error={errors.pincode}>
-                  <input className={input(errors.pincode)} placeholder="560001" maxLength={6} value={form.pincode} onChange={e => update('pincode', e.target.value)} />
+                <Field label="Pincode *" error={errors.pincode}>
+                  <input className={inp(errors.pincode)} placeholder="560001" maxLength={6}
+                    value={form.pincode} onChange={e => update('pincode', e.target.value.replace(/\D/g, ''))} />
                 </Field>
                 <Field label="Website (optional)" icon={Globe}>
-                  <input className={input()} placeholder="https://yoursite.com" value={form.website} onChange={e => update('website', e.target.value)} />
+                  <input className={inp()} placeholder="https://yoursite.com"
+                    value={form.website} onChange={e => update('website', e.target.value)} />
                 </Field>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Brief Description</label>
@@ -350,66 +531,107 @@ const handleSubmit = async () => {
                   />
                 </div>
               </div>
+              {form.latitude && form.longitude && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                  <CheckCircle size={13} />
+                  Location coordinates captured: {form.latitude.toFixed(4)}, {form.longitude.toFixed(4)}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Step 3: Services & Hours */}
+          {/* ── Step 3: Services & Hours ── */}
           {step === 3 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-1">Services & Working Hours</h2>
               <p className="text-gray-500 mb-8 text-sm">Select what you offer and when you're open.</p>
 
+              {/* Services */}
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">Services Offered</label>
-                {errors.services && <p className="text-red-500 text-xs mb-2">{errors.services}</p>}
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Services Offered *</label>
+                {errors.services && <p className="text-red-500 text-xs mb-2 flex items-center gap-1"><AlertCircle size={11}/>{errors.services}</p>}
                 <div className="flex flex-wrap gap-2">
                   {SERVICE_TYPES.map(s => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => toggleArray('services', s)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${form.services.includes(s)
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'}`}
-                    >
+                    <button key={s} type="button" onClick={() => toggleArray('services', s)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium border transition-all
+                        ${form.services.includes(s) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'}`}>
                       {s}
                     </button>
                   ))}
                 </div>
               </div>
 
+              {/* Vehicle Types */}
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">Vehicle Types Serviced</label>
-                {errors.vehicleTypes && <p className="text-red-500 text-xs mb-2">{errors.vehicleTypes}</p>}
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Vehicle Types Serviced *</label>
+                {errors.vehicleTypes && <p className="text-red-500 text-xs mb-2 flex items-center gap-1"><AlertCircle size={11}/>{errors.vehicleTypes}</p>}
                 <div className="flex flex-wrap gap-2">
                   {VEHICLE_TYPES.map(v => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => toggleArray('vehicleTypes', v)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${form.vehicleTypes.includes(v)
-                        ? 'bg-green-600 text-white border-green-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-green-400'}`}
-                    >
+                    <button key={v} type="button" onClick={() => toggleArray('vehicleTypes', v)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium border transition-all
+                        ${form.vehicleTypes.includes(v) ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300 hover:border-green-400'}`}>
                       {v}
                     </button>
                   ))}
                 </div>
               </div>
 
+              {/* Supported Brands — shown if Cars or Bikes selected */}
+              {(form.vehicleTypes.includes('Cars') || form.vehicleTypes.includes('Bikes')) && (
+                <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-2xl">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Supported Vehicle Brands
+                    <span className="ml-2 text-xs font-normal text-indigo-600">— customers will filter by brand</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mb-3">Select every car/bike brand your center can service.</p>
+
+                  {form.vehicleTypes.includes('Cars') && (
+                    <div className="mb-3">
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">🚗 Car Brands</p>
+                      <div className="flex flex-wrap gap-2">
+                        {CAR_BRANDS.map(b => (
+                          <button key={b} type="button" onClick={() => toggleArray('supportedBrands', b)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all
+                              ${form.supportedBrands.includes(b) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'}`}>
+                            {b}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {form.vehicleTypes.includes('Bikes') && (
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">🏍️ Bike Brands</p>
+                      <div className="flex flex-wrap gap-2">
+                        {BIKE_BRANDS.map(b => (
+                          <button key={b} type="button" onClick={() => toggleArray('supportedBrands', b)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all
+                              ${form.supportedBrands.includes(b) ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300 hover:border-orange-400'}`}>
+                            {b}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {form.supportedBrands.length > 0 && (
+                    <p className="text-xs text-indigo-700 mt-2 font-medium">
+                      ✓ {form.supportedBrands.length} brand{form.supportedBrands.length > 1 ? 's' : ''} selected
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Working Days */}
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">Working Days</label>
-                {errors.openDays && <p className="text-red-500 text-xs mb-2">{errors.openDays}</p>}
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Working Days *</label>
+                {errors.openDays && <p className="text-red-500 text-xs mb-2 flex items-center gap-1"><AlertCircle size={11}/>{errors.openDays}</p>}
                 <div className="flex flex-wrap gap-2">
                   {DAYS.map(d => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => toggleArray('openDays', d)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${form.openDays.includes(d)
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'}`}
-                    >
+                    <button key={d} type="button" onClick={() => toggleArray('openDays', d)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium border transition-all
+                        ${form.openDays.includes(d) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'}`}>
                       {d.slice(0, 3)}
                     </button>
                   ))}
@@ -418,10 +640,10 @@ const handleSubmit = async () => {
 
               <div className="grid md:grid-cols-3 gap-5">
                 <Field label="Opening Time" icon={Clock}>
-                  <input type="time" className={input()} value={form.openTime} onChange={e => update('openTime', e.target.value)} />
+                  <input type="time" className={inp()} value={form.openTime} onChange={e => update('openTime', e.target.value)} />
                 </Field>
-                <Field label="Closing Time" icon={Clock}>
-                  <input type="time" className={input()} value={form.closeTime} onChange={e => update('closeTime', e.target.value)} />
+                <Field label="Closing Time" icon={Clock} error={errors.closeTime}>
+                  <input type="time" className={inp(errors.closeTime)} value={form.closeTime} onChange={e => update('closeTime', e.target.value)} />
                 </Field>
                 <div className="flex items-end pb-1">
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -438,40 +660,42 @@ const handleSubmit = async () => {
             </div>
           )}
 
-          {/* Step 4: Documents */}
+          {/* ── Step 4: Documents ── */}
           {step === 4 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-1">Business Documents</h2>
-              <p className="text-gray-500 mb-8 text-sm">These details are used for verification and will remain confidential.</p>
+              <p className="text-gray-500 mb-8 text-sm">Used for verification only — kept confidential.</p>
               <div className="grid md:grid-cols-2 gap-5">
-                <Field label="GST Number" icon={FileText} error={errors.gstNumber}>
-                  <input className={input(errors.gstNumber)} placeholder="22AAAAA0000A1Z5" value={form.gstNumber} onChange={e => update('gstNumber', e.target.value)} />
+                <Field label="GST Number *" icon={FileText} error={errors.gstNumber}>
+                  <input className={inp(errors.gstNumber)} placeholder="29ABCDE1234F1Z5" maxLength={15}
+                    value={form.gstNumber} onChange={e => update('gstNumber', e.target.value.toUpperCase())} />
                 </Field>
-                <Field label="PAN Number" icon={FileText} error={errors.panNumber}>
-                  <input className={input(errors.panNumber)} placeholder="ABCDE1234F" maxLength={10} value={form.panNumber} onChange={e => update('panNumber', e.target.value.toUpperCase())} />
+                <Field label="PAN Number *" icon={FileText} error={errors.panNumber}>
+                  <input className={inp(errors.panNumber)} placeholder="ABCDE1234F" maxLength={10}
+                    value={form.panNumber} onChange={e => update('panNumber', e.target.value.toUpperCase())} />
                 </Field>
-                <Field label="Trade / Shop License Number" icon={FileText} error={errors.licenseNumber}>
-                  <input className={input(errors.licenseNumber)} placeholder="License number" value={form.licenseNumber} onChange={e => update('licenseNumber', e.target.value)} />
+                <Field label="Trade / Shop License Number *" icon={FileText} error={errors.licenseNumber}>
+                  <input className={inp(errors.licenseNumber)} placeholder="License number"
+                    value={form.licenseNumber} onChange={e => update('licenseNumber', e.target.value)} />
                 </Field>
-                <Field label="Years in Business">
-                  <input type="number" className={input()} placeholder="e.g. 5" min={0} value={form.yearsInBusiness} onChange={e => update('yearsInBusiness', e.target.value)} />
+                <Field label="Years in Business" error={errors.yearsInBusiness}>
+                  <input type="number" className={inp(errors.yearsInBusiness)} placeholder="e.g. 5"
+                    min={0} value={form.yearsInBusiness} onChange={e => update('yearsInBusiness', e.target.value)} />
                 </Field>
-                <Field label="Total Service Bays">
-                  <input type="number" className={input()} placeholder="e.g. 8" min={1} value={form.totalBays} onChange={e => update('totalBays', e.target.value)} />
+                <Field label="Total Service Bays" error={errors.totalBays}>
+                  <input type="number" className={inp(errors.totalBays)} placeholder="e.g. 8"
+                    min={1} value={form.totalBays} onChange={e => update('totalBays', e.target.value)} />
                 </Field>
               </div>
 
-              {/* File uploads — wired to form state */}
               <div className="mt-6 grid md:grid-cols-2 gap-4">
                 {[
                   { label: 'GST Certificate', field: 'gstCertificateFile' },
                   { label: 'Trade License',   field: 'tradeLicenseFile'   },
                   { label: 'Shop Photo',      field: 'shopPhotoFile'      },
                 ].map(({ label, field }) => (
-                  <label
-                    key={field}
-                    className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:border-blue-400 transition-colors cursor-pointer block"
-                  >
+                  <label key={field}
+                    className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:border-blue-400 transition-colors cursor-pointer block">
                     <Upload size={24} className={`mx-auto mb-2 ${form[field] ? 'text-blue-500' : 'text-gray-400'}`} />
                     <p className="text-sm font-medium text-gray-700">
                       {form[field] ? form[field].name : `Upload ${label}`}
@@ -479,56 +703,44 @@ const handleSubmit = async () => {
                     <p className="text-xs text-gray-400 mt-1">
                       {form[field] ? `${(form[field].size / 1024).toFixed(1)} KB` : 'PDF, JPG or PNG (max 5MB)'}
                     </p>
-                    <input
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      className="hidden"
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
                       onChange={e => {
                         const file = e.target.files?.[0];
-                        if (file && file.size > 5 * 1024 * 1024) {
-                          toast.error(`${label} must be under 5MB`);
-                          return;
-                        }
+                        if (file && file.size > 5 * 1024 * 1024) { toast.error(`${label} must be under 5MB`); return; }
                         update(field, file ?? null);
-                      }}
-                    />
+                      }} />
                   </label>
                 ))}
               </div>
 
               <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
                 <p className="text-sm text-blue-700">
-                  <strong>Note:</strong> Your application will be reviewed by the MotoMate team within 2–3 business days.
-                  You'll be notified via email once your service center is approved and live on the platform.
+                  <strong>Note:</strong> Your application will be reviewed within 2–3 business days.
+                  You'll be notified via email once approved.
                 </p>
               </div>
             </div>
           )}
 
-          {/* Navigation Buttons */}
+          {/* Navigation */}
           <div className="flex items-center justify-between mt-10 pt-6 border-t border-gray-100">
-            {step > 1 ? (
-              <button onClick={back} disabled={loading} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                <ChevronLeft size={18} /> Back
-              </button>
-            ) : (
-              <Link to="/" className={loading ? "pointer-events-none opacity-50" : "text-sm text-gray-500 hover:text-gray-700 transition-colors"}>← Back to Home</Link>
-            )}
-            {step < STEPS.length ? (
-              <button onClick={next} className="flex items-center gap-2 bg-linear-to-r from-blue-500 to-blue-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:opacity-90 transition-opacity shadow-md">
-                Continue <ChevronRight size={18} />
-              </button>
-            ) : (
-              <button onClick={handleSubmit} disabled={loading} className="flex items-center gap-2 bg-linear-to-r from-green-500 to-green-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:opacity-90 transition-opacity shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
-                {loading ? (
-                  <>
-                    <Spinner size={18} /> Submitting...
-                  </>
-                ) : (
-                  <>Submit Application <CheckCircle size={18} /></>
-                )}
-              </button>
-            )}
+            {step > 1
+              ? <button onClick={back} disabled={loading || geocoding}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50">
+                  <ChevronLeft size={18} /> Back
+                </button>
+              : <Link to="/" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">← Back to Home</Link>
+            }
+            {step < STEPS.length
+              ? <button onClick={next} disabled={geocoding}
+                  className="flex items-center gap-2 bg-lineart-to-r from-blue-500 to-blue-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:opacity-90 transition-opacity shadow-md disabled:opacity-60">
+                  {geocoding ? <><Loader2 size={16} className="animate-spin" /> Locating…</> : <>Continue <ChevronRight size={18} /></>}
+                </button>
+              : <button onClick={handleSubmit} disabled={loading}
+                  className="flex items-center gap-2 bg-lineart-to-r from-green-500 to-green-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:opacity-90 transition-opacity shadow-md disabled:opacity-50">
+                  {loading ? <><Spinner size={18} /> Submitting…</> : <>Submit Application <CheckCircle size={18} /></>}
+                </button>
+            }
           </div>
         </motion.div>
 
@@ -541,8 +753,7 @@ const handleSubmit = async () => {
   );
 };
 
-/* Helpers */
-const input = (err) =>
+const inp = (err) =>
   `w-full border ${err ? 'border-red-400 focus:ring-red-300' : 'border-gray-300 focus:ring-blue-300 focus:border-blue-400'} rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 transition-all bg-white`;
 
 const Field = ({ label, icon: Icon, error, children }) => (
@@ -552,7 +763,7 @@ const Field = ({ label, icon: Icon, error, children }) => (
       {label}
     </label>
     {children}
-    {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+    {error && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={11}/>{error}</p>}
   </div>
 );
 

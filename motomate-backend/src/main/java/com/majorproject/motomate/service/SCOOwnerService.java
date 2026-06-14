@@ -30,6 +30,9 @@ public class SCOOwnerService {
     private CustomerServiceRepository customerServiceRepository; // ← ADDED
 
     @Autowired
+    private FleetServiceRepository fleetServiceRepository; // ← ADDED for fleet sync
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     // ═══════════════════════════════════════════════════════════════
@@ -305,6 +308,12 @@ public class SCOOwnerService {
 
         sseNotificationService.notifyWorker(worker.getWorkerUserId(), workerId, workerPayload);
         sseNotificationService.notifyCustomer(saved.getCustomerId(), customerPayload);
+
+        // ── If this is a fleet booking, notify fleet manager too ─────────────
+        if ("FLEET".equals(saved.getBookingSource())) {
+            String fleetPayload = buildFleetManagerPayload(saved, worker, "ASSIGNED");
+            sseNotificationService.notifyCustomer(saved.getCustomerId(), fleetPayload);
+        }
         // ────────────────────────────────────────────────────────────────────
 
         return saved;
@@ -331,6 +340,13 @@ public class SCOOwnerService {
         syncCustomerBookingStatus(saved.getId(), "COMPLETED");
         // ────────────────────────────────────────────────────────────────────
 
+        // ── Notify fleet manager on completion ───────────────────────────────
+        if ("FLEET".equals(saved.getBookingSource())) {
+            String payload = buildFleetStatusPayload(saved, "COMPLETED");
+            sseNotificationService.notifyCustomer(saved.getCustomerId(), payload);
+        }
+        // ────────────────────────────────────────────────────────────────────
+
         return saved;
     }
 
@@ -347,6 +363,13 @@ public class SCOOwnerService {
         syncCustomerBookingStatus(saved.getId(), status);
         // ────────────────────────────────────────────────────────────────────
 
+        // ── Notify fleet manager on status change ────────────────────────────
+        if ("FLEET".equals(saved.getBookingSource())) {
+            String payload = buildFleetStatusPayload(saved, status);
+            sseNotificationService.notifyCustomer(saved.getCustomerId(), payload);
+        }
+        // ────────────────────────────────────────────────────────────────────
+
         return saved;
     }
 
@@ -357,13 +380,58 @@ public class SCOOwnerService {
         return requestRepo.save(request);
     }
 
-    // ── Helper: keep CustomerServiceModel.status in sync ─────────────────────
+    // ── Helper: keep CustomerServiceModel AND FleetService status in sync ──────
     private void syncCustomerBookingStatus(String scoRequestId, String status) {
+        // Sync customer booking
         customerServiceRepository.findByScoRequestId(scoRequestId).ifPresent(booking -> {
             booking.setStatus(status);
             customerServiceRepository.save(booking);
         });
+
+        // Sync fleet service — also mirror assigned worker name/id from the SCO request
+        fleetServiceRepository.findByScoRequestId(scoRequestId).ifPresent(fs -> {
+            fs.setStatus(status);
+            // Pull latest assigned worker from the SCO request
+            requestRepo.findById(scoRequestId).ifPresent(req -> {
+                if (req.getAssignedWorkerId() != null) {
+                    fs.setAssignedWorkerId(req.getAssignedWorkerId());
+                    fs.setAssignedWorker(req.getAssignedWorkerName());
+                }
+            });
+            if ("COMPLETED".equals(status)) {
+                fs.setCompletedAt(java.time.LocalDateTime.now());
+            }
+            fleetServiceRepository.save(fs);
+        });
     }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ── Fleet-specific SSE payloads ──────────────────────────────────────────
+   private String buildFleetManagerPayload(SCOServiceRequest req, SCOWorker worker, String status) {
+    return "{"
+            + "\"type\":\"FLEET_WORKER_ASSIGNED\","
+            + "\"requestId\":\"" + esc(req.getId()) + "\","
+            + "\"vehicleNumber\":\"" + esc(req.getVehicleNumber()) + "\","
+            + "\"workerName\":\"" + esc(worker.getName()) + "\","
+            + "\"workerPhone\":\"" + esc(worker.getPhone()) + "\","
+            + "\"workerRating\":" + (worker.getRating() != null ? worker.getRating() : 0) + ","
+            + "\"serviceNames\":" + toJsonArray(req.getServiceNames()) + ","
+            + "\"status\":\"" + status + "\","
+            + "\"message\":\"Worker " + esc(worker.getName()) + " assigned to vehicle " + esc(req.getVehicleNumber()) + "\""
+            + "}";
+}
+
+private String buildFleetStatusPayload(SCOServiceRequest req, String status) {
+    return "{"
+            + "\"type\":\"FLEET_STATUS_UPDATE\","
+            + "\"requestId\":\"" + esc(req.getId()) + "\","
+            + "\"vehicleNumber\":\"" + esc(req.getVehicleNumber()) + "\","
+            + "\"serviceNames\":" + toJsonArray(req.getServiceNames()) + ","
+            + "\"assignedWorker\":\"" + esc(req.getAssignedWorkerName()) + "\","
+            + "\"status\":\"" + status + "\","
+            + "\"message\":\"Service status updated to " + status + " for vehicle " + esc(req.getVehicleNumber()) + "\""
+            + "}";
+}
     // ─────────────────────────────────────────────────────────────────────────
 
     private String buildWorkerPayload(SCOServiceRequest req, SCOWorker worker) {

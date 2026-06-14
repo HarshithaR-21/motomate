@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Car, History, Clock, User, TriangleAlert, UserCircle } from 'lucide-react'; // Using react-icons for icons
+import { Car, History, Clock, User, TriangleAlert, UserCircle, EvCharger } from 'lucide-react'; // Using react-icons for icons
 import Footer from '../../Components/Footer';
 import Navigation from '../../Components/Navigation';
 import { useNavigate } from 'react-router-dom';
@@ -39,7 +39,7 @@ const CustomerDashboard = () => {
       title: 'Vehicle Services',
       description: 'Book and customize services for your vehicle.',
       icon: <Car className="text-blue-600 text-3xl" />,
-      link: 'vehicle-services', // Placeholder link
+      link: 'vehicle-services/book-service', // Placeholder link
     },
     {
       id: 2,
@@ -69,6 +69,13 @@ const CustomerDashboard = () => {
       icon: <TriangleAlert className="text-red-500 text-3xl" />, // Red for emergency
       link: 'emergency-sos',
     },
+    {
+      id: 6,
+      title: 'EV corner',
+      description: 'Get your electric vehicle serviced here.',
+      icon: <EvCharger className="text-green-500 text-3xl" />, // Green for EV
+      link: '/ev/vehicles',
+    }
   ];
 
   return (

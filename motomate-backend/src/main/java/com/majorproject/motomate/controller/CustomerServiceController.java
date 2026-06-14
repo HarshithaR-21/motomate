@@ -7,10 +7,13 @@ import com.majorproject.motomate.model.ServiceCenterRegistration;
 import com.majorproject.motomate.enums.ApprovalStatus;
 import com.majorproject.motomate.repository.SCOServiceRepository;
 import com.majorproject.motomate.repository.SCOWorkerRepository;
+import com.majorproject.motomate.repository.ServiceCenterRatingRepository;
 import com.majorproject.motomate.repository.ServiceCenterRegistrationRepository;
 import com.majorproject.motomate.repository.UserRepository;
 import com.majorproject.motomate.service.CustomerService;
 import com.majorproject.motomate.service.WorkerService;
+import com.majorproject.motomate.model.UserModel;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +33,7 @@ public class CustomerServiceController {
 
     @Autowired private CustomerService            customerServiceService;
     @Autowired private ServiceCenterRegistrationRepository serviceCenterRepo;
+    @Autowired private ServiceCenterRatingRepository serviceCenterRatingRepo;
     @Autowired private SCOServiceRepository       scoServiceRepo;
     @Autowired private SCOWorkerRepository        scoWorkerRepo;
     @Autowired private UserRepository             userRepository;
@@ -65,6 +69,29 @@ public class CustomerServiceController {
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
+    }
+
+    // ── 1b. Get previously serviced vehicles for the logged-in customer ───────
+    @GetMapping("/my-vehicles")
+    public ResponseEntity<?> getMyPreviousVehicles() {
+        try {
+            String userId = getCurrentUserId();
+            return ResponseEntity.ok(customerServiceService.getPreviousVehicles(userId));
+        } catch (Exception e) {
+            return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private String getCurrentUserId() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getPrincipal() == null) {
+            throw new IllegalStateException("User is not authenticated");
+        }
+        Object principal = auth.getPrincipal();
+        if (principal instanceof UserModel) {
+            return ((UserModel) principal).getId();
+        }
+        throw new IllegalStateException("Unable to resolve current user");
     }
 
     // ── 3. Edit booking ───────────────────────────────────────────────────────
@@ -137,14 +164,35 @@ public class CustomerServiceController {
     // ── 5. Service center discovery ───────────────────────────────────────────
 
     /**
-     * GET /api/services/centers
+     * GET /api/services/centers?vehicleType=Car
      * All APPROVED service centers for the customer booking flow.
+     * Fix 4: Optional vehicleType filter (Car or Bike) for brand-based filtering.
      */
     @GetMapping("/centers")
-    public ResponseEntity<?> getApprovedServiceCenters() {
+    public ResponseEntity<?> getApprovedServiceCenters(
+            @RequestParam(required = false) String vehicleType) {
         try {
             List<ServiceCenterRegistration> centers =
                     serviceCenterRepo.findByApprovalStatus(ApprovalStatus.APPROVED);
+
+            // Fix 4: Filter by vehicleType if provided (e.g. "Car" or "Bike")
+            if (vehicleType != null && !vehicleType.isBlank()) {
+                final String vt = vehicleType.trim().toLowerCase();
+                centers = centers.stream()
+                        .filter(c -> {
+                            // Check vehicleTypes list
+                            if (c.getVehicleTypes() != null && !c.getVehicleTypes().isEmpty()) {
+                                return c.getVehicleTypes().stream()
+                                        .anyMatch(v -> v != null && v.toLowerCase().contains(vt));
+                            }
+                            // Fallback: check centerType string
+                            if (c.getCenterType() != null) {
+                                return c.getCenterType().toLowerCase().contains(vt);
+                            }
+                            return true; // if no type data, include by default
+                        })
+                        .collect(java.util.stream.Collectors.toList());
+            }
 
             List<Map<String, Object>> result = centers.stream().map(c -> {
                 String ownerId = userRepository.findByEmail(c.getEmail())
@@ -172,6 +220,23 @@ public class CustomerServiceController {
                 m.put("workerCount",      workerCount);
                 m.put("yearsInBusiness",  c.getYearsInBusiness());
                 m.put("totalBays",        c.getTotalBays());
+                m.put("latitude",         c.getLatitude());
+                m.put("longitude",        c.getLongitude());
+                m.put("supportedBrands",  c.getSupportedBrands());
+
+                // Attach live rating data
+                if (ownerId != null) {
+                    java.util.List<com.majorproject.motomate.model.ServiceCenterRating> ratingList =
+                        serviceCenterRatingRepo.findByServiceCenterId(ownerId);
+                    double avg = ratingList.stream().mapToInt(com.majorproject.motomate.model.ServiceCenterRating::getRating)
+                        .average().orElse(0.0);
+                    avg = Math.round(avg * 10.0) / 10.0;
+                    m.put("averageRating",  avg);
+                    m.put("totalRatings",   ratingList.size());
+                } else {
+                    m.put("averageRating",  0.0);
+                    m.put("totalRatings",   0);
+                }
                 return m;
             }).collect(Collectors.toList());
 
