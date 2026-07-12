@@ -191,6 +191,22 @@ public class EVController {
 
     // ── EV Workshop (Service Center) endpoints ─────────────────────────────────
 
+    /**
+     * Resolve the EV workshop linked to the currently logged-in service center owner.
+     * Used by the EV workshop dashboard/requests pages to discover their workshopId.
+     */
+    @GetMapping("/my-workshop")
+    public ResponseEntity<?> getMyWorkshop() {
+        try {
+            String userId = getCurrentUserId();
+            return ResponseEntity.ok(evService.getMyWorkshop(userId));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", ex.getMessage()));
+        }
+    }
+
     @GetMapping("/workshop/{workshopId}/dashboard")
     public ResponseEntity<?> getWorkshopDashboard(@PathVariable String workshopId) {
         try {
@@ -220,6 +236,47 @@ public class EVController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/workshop/{workshopId}/workers")
+    public ResponseEntity<?> getWorkshopWorkers(@PathVariable String workshopId) {
+        try {
+            return ResponseEntity.ok(evService.getWorkshopWorkers(workshopId));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
+        }
+    }
+
+    @PutMapping("/workshop/workers/{workerId}/status")
+    public ResponseEntity<?> updateWorkerStatus(
+            @PathVariable String workerId,
+            @RequestParam String status) {
+        try {
+            return ResponseEntity.ok(evService.updateWorkerStatus(workerId, status));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
+        }
+    }
+
+    /**
+     * Assign an EV technician (from the requesting workshop) to a service request.
+     */
+    @PutMapping("/workshop/requests/{requestId}/assign")
+    public ResponseEntity<?> assignWorker(
+            @PathVariable String requestId,
+            @Valid @RequestBody EVDTOs.AssignWorkerRequest body) {
+        try {
+            String userId = getCurrentUserId();
+            EVWorkshop workshop = evService.getMyWorkshop(userId);
+            EVServiceRequest updated = evService.assignWorker(requestId, body.getWorkerId(), workshop.getId());
+            return ResponseEntity.ok(updated);
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", ex.getMessage()));
         }
     }
 

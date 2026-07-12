@@ -417,9 +417,15 @@ export default function CurrentServiceStatus() {
           const data = JSON.parse(event.data);
           setBookings(prev => prev.map(b =>
             (b.scoRequestId === data.requestId || b.vehicleNumber === data.vehicleNumber)
-              ? { ...b, status: data.status } : b
+              ? { ...b, status: data.status, assignedWorkerName: data.status === "PENDING" ? null : b.assignedWorkerName } : b
           ));
-          if (data.requestId && (data.workerName || data.assignedWorkerName)) {
+          if (data.status === "PENDING") {
+            setWorkerMap(prev => {
+              const next = { ...prev };
+              delete next[data.requestId];
+              return next;
+            });
+          } else if (data.requestId && (data.workerName || data.assignedWorkerName)) {
             setWorkerMap(prev => ({ ...prev, [data.requestId]: { ...prev[data.requestId], ...data } }));
           }
           toast(`Status: ${data.status.replace(/_/g, ' ')}`, { icon: 'ℹ️', duration: 6000 });

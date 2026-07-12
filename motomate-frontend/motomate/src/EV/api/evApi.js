@@ -69,11 +69,13 @@ export const evWorkerApi = {
 
 // ── EV Workshop ───────────────────────────────────────────────────────────────
 export const evWorkshopApi = {
+  getMyWorkshop: ()        => fetchApi(`${BASE}/api/ev/my-workshop`, { headers: headers() }).then(handle),
   getDashboard: workshopId => fetchApi(`${BASE}/api/ev/workshop/${workshopId}/dashboard`, { headers: headers() }).then(handle),
   getRequests:  workshopId => fetchApi(`${BASE}/api/ev/workshop/${workshopId}/requests`,  { headers: headers() }).then(handle),
   getWorkers:   workshopId => fetchApi(`${BASE}/api/ev/workshop/${workshopId}/workers`,   { headers: headers() }).then(handle),
   updateStatus: (requestId, status, reason) => fetchApi(`${BASE}/api/ev/workshop/requests/${requestId}/status`, { method: 'PUT', headers: headers(), body: JSON.stringify({ status, reason }) }).then(handle),
   updateWorkerStatus: (workerId, status) => fetchApi(`${BASE}/api/ev/workshop/workers/${workerId}/status?status=${status}`, { method: 'PUT', headers: headers() }).then(handle),
+  assignWorker: (requestId, workerId) => fetchApi(`${BASE}/api/ev/workshop/requests/${requestId}/assign`, { method: 'PUT', headers: headers(), body: JSON.stringify({ workerId }) }).then(handle),
 };
 
 // ── Admin EV ──────────────────────────────────────────────────────────────────

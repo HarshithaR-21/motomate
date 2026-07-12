@@ -5,8 +5,8 @@ import { EVWorkshopSidebar } from '../components/EVSidebar';
 import { evWorkshopApi } from '../api/evApi';
 
 // Workshop id for the currently logged-in EV service center.
-// Falls back to the seeded "GreenCharge EV Service" workshop if not set.
-const getWorkshopId = () => {
+// Falls back to localStorage hints if the /my-workshop lookup fails.
+const getCachedWorkshopId = () => {
   try {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     return (user && (user.workshopId || user.id)) || localStorage.getItem('evWorkshopId');
@@ -21,19 +21,29 @@ export default function EVWorkshopDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const workshopId = getWorkshopId();
+  const [workshopId, setWorkshopId] = useState(getCachedWorkshopId());
 
   const load = async () => {
-    if (!workshopId) {
-      setError('No EV workshop is linked to this account.');
-      setLoading(false);
-      return;
+    let id = workshopId;
+    if (!id) {
+      try {
+        const workshop = await evWorkshopApi.getMyWorkshop();
+        id = workshop.id;
+        setWorkshopId(id);
+        try {
+          const user = JSON.parse(localStorage.getItem('user') || '{}');
+          localStorage.setItem('user', JSON.stringify({ ...user, workshopId: id }));
+        } catch {}
+      } catch (e) {
+        setError('No EV workshop is linked to this account.');
+        setLoading(false);
+        return;
+      }
     }
     try {
       const [dashboard, reqs] = await Promise.all([
-        evWorkshopApi.getDashboard(workshopId),
-        evWorkshopApi.getRequests(workshopId),
+        evWorkshopApi.getDashboard(id),
+        evWorkshopApi.getRequests(id),
       ]);
       setStats(dashboard);
       setRequests(reqs);

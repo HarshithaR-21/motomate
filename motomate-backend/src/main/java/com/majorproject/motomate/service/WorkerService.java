@@ -186,7 +186,25 @@ public class WorkerService {
         job.setAssignedWorkerName(null);
         job.setCancellationReason("Worker rejected: " + reason.trim());
         requestRepo.save(job);
+
+        customerServiceRepository.findByScoRequestId(job.getId())
+                .ifPresent(booking -> {
+                    booking.setStatus("PENDING");
+                    customerServiceRepository.save(booking);
+                });
+
         syncFleetServiceForJob(job);
+
+        String customerId = job.getCustomerId();
+        if (customerId != null) {
+            String statusPayload = "{"
+                    + "\"requestId\":\"" + jobId + "\","
+                    + "\"status\":\"PENDING\","
+                    + "\"message\":\"Your service request is being reassigned to another worker.\","
+                    + "\"assignedWorkerName\":null"
+                    + "}";
+            sseNotificationService.notifyJobStatusUpdate(customerId, statusPayload);
+        }
 
         return JobActionResponse.builder()
                 .jobId(jobId)

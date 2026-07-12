@@ -3,10 +3,14 @@ package com.majorproject.motomate.service;
 import com.majorproject.motomate.dto.EVDTOs;
 import com.majorproject.motomate.model.EVServiceRequest;
 import com.majorproject.motomate.model.EVVehicle;
+import com.majorproject.motomate.model.EVWorker;
 import com.majorproject.motomate.model.EVWorkshop;
+import com.majorproject.motomate.model.UserModel;
 import com.majorproject.motomate.repository.EVServiceRequestRepository;
 import com.majorproject.motomate.repository.EVVehicleRepository;
+import com.majorproject.motomate.repository.EVWorkerRepository;
 import com.majorproject.motomate.repository.EVWorkshopRepository;
+import com.majorproject.motomate.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +35,12 @@ public class EVService {
 
     @Autowired
     private EVServiceRequestRepository requestRepository;
+
+    @Autowired
+    private EVWorkerRepository workerRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     public EVVehicle createVehicle(EVDTOs.EVVehicleRequest req, String ownerId) {
         EVVehicle vehicle = EVVehicle.builder()
@@ -95,6 +105,85 @@ public class EVService {
     public EVWorkshop getWorkshopById(String id) {
         return workshopRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Workshop not found"));
+    }
+
+    /**
+     * Resolve the EV workshop managed by the currently logged-in user.
+     * Matches on EVWorkshop.ownerId first (if previously linked), then
+     * falls back to matching EVWorkshop.email against the user's email —
+     * this covers workshops seeded before ownerId linking existed.
+     */
+    public EVWorkshop getMyWorkshop(String userId) {
+        Optional<EVWorkshop> byOwner = workshopRepository.findByOwnerId(userId);
+        if (byOwner.isPresent()) {
+            return byOwner.get();
+        }
+
+        UserModel user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        EVWorkshop workshop = workshopRepository.findByEmail(user.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("No EV workshop is linked to this account"));
+
+        // Backfill ownerId so future lookups are direct.
+        if (workshop.getOwnerId() == null) {
+            workshop.setOwnerId(userId);
+            workshopRepository.save(workshop);
+        }
+        return workshop;
+    }
+
+    // ── EV Worker management ────────────────────────────────────────────────
+
+    public List<EVWorker> getWorkshopWorkers(String workshopId) {
+        workshopRepository.findById(workshopId)
+                .orElseThrow(() -> new IllegalArgumentException("Workshop not found"));
+        return workerRepository.findByWorkshopId(workshopId);
+    }
+
+    public EVWorker updateWorkerStatus(String workerId, String status) {
+        EVWorker worker = workerRepository.findById(workerId)
+                .orElseThrow(() -> new IllegalArgumentException("Worker not found"));
+
+        List<String> validStatuses = List.of("AVAILABLE", "ASSIGNED", "OFF_DUTY");
+        if (!validStatuses.contains(status)) {
+            throw new IllegalArgumentException("Invalid availability status: " + status);
+        }
+        worker.setAvailabilityStatus(status);
+        return workerRepository.save(worker);
+    }
+
+    /**
+     * Assign an EV technician to a service request.
+     * Moves the request to ASSIGNED status and marks the worker as ASSIGNED.
+     */
+    public EVServiceRequest assignWorker(String requestId, String workerId, String workshopId) {
+        EVServiceRequest request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Service request not found"));
+
+        if (!request.getSelectedWorkshopId().equals(workshopId)) {
+            throw new IllegalArgumentException("This request does not belong to your workshop");
+        }
+        if (List.of("COMPLETED", "CANCELLED").contains(request.getStatus())) {
+            throw new IllegalStateException("Cannot assign a worker to a completed or cancelled request");
+        }
+
+        EVWorker worker = workerRepository.findById(workerId)
+                .orElseThrow(() -> new IllegalArgumentException("Worker not found"));
+        if (!workshopId.equals(worker.getWorkshopId())) {
+            throw new IllegalArgumentException("Worker does not belong to your workshop");
+        }
+
+        request.setAssignedWorkerId(worker.getId());
+        request.setAssignedWorkerName(worker.getName());
+        request.setAssignedWorkerPhone(worker.getPhone());
+        request.setStatus("ASSIGNED");
+        request.setAssignedAt(java.time.LocalDateTime.now());
+
+        worker.setAvailabilityStatus("ASSIGNED");
+        workerRepository.save(worker);
+
+        return requestRepository.save(request);
     }
 
     public EVServiceRequest bookService(EVDTOs.EVBookServiceRequest request, String customerId) {
@@ -240,15 +329,20 @@ public class EVService {
         long completed = requests.stream().filter(r -> "COMPLETED".equals(r.getStatus())).count();
         long cancelled = requests.stream().filter(r -> "CANCELLED".equals(r.getStatus())).count();
 
+        List<EVWorker> workers = workerRepository.findByWorkshopId(workshopId);
+        long availableWorkers = workers.stream().filter(w -> "AVAILABLE".equals(w.getAvailabilityStatus())).count();
+        long assignedWorkers = workers.stream().filter(w -> "ASSIGNED".equals(w.getAvailabilityStatus())).count();
+        long offDutyWorkers = workers.stream().filter(w -> "OFF_DUTY".equals(w.getAvailabilityStatus())).count();
+
         return EVDTOs.EVWorkshopStats.builder()
                 .totalRequests(requests.size())
                 .pendingRequests(pending)
                 .activeRequests(active)
                 .completedRequests(completed)
                 .cancelledRequests(cancelled)
-                .availableWorkers(0)
-                .assignedWorkers(0)
-                .offDutyWorkers(0)
+                .availableWorkers(availableWorkers)
+                .assignedWorkers(assignedWorkers)
+                .offDutyWorkers(offDutyWorkers)
                 .build();
     }
 

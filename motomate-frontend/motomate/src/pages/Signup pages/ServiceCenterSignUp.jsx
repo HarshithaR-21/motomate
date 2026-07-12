@@ -733,7 +733,7 @@ const ServiceCenterSignup = () => {
             }
             {step < STEPS.length
               ? <button onClick={next} disabled={geocoding}
-                  className="flex items-center gap-2 bg-lineart-to-r from-blue-500 to-blue-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:opacity-90 transition-opacity shadow-md disabled:opacity-60">
+                  className="flex items-center gap-2 bg-lineart-to-r  px-6 py-2.5 rounded-xl font-semibold hover:opacity-90 transition-opacity shadow-md disabled:opacity-60">
                   {geocoding ? <><Loader2 size={16} className="animate-spin" /> Locating…</> : <>Continue <ChevronRight size={18} /></>}
                 </button>
               : <button onClick={handleSubmit} disabled={loading}

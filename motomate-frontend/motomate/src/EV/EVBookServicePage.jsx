@@ -48,7 +48,7 @@ export default function EVBookServicePage() {
 
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedWorkshop, setSelectedWorkshop] = useState(null);
-  const [selectedService, setSelectedService] = useState(null);
+  const [selectedServices, setSelectedServices] = useState([]);
 
   useEffect(() => {
     evApi.getMyVehicles()
@@ -83,7 +83,7 @@ export default function EVBookServicePage() {
     try {
       const result = await evApi.bookService({
         ...form,
-        serviceNames: selectedService ? [selectedService.label] : [],
+        serviceNames: selectedServices.map(s => s.label),
       });
       setSuccess(result);
     } catch (e) {
@@ -234,28 +234,41 @@ export default function EVBookServicePage() {
       case 2:
         return (
           <div>
-            <EVHeading sub="What does your EV need?">Select Service Type</EVHeading>
+            <EVHeading sub="What does your EV need? You can select more than one.">Select Service Type(s)</EVHeading>
             <div style={{ height: '16px' }} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: '12px' }}>
-              {SERVICE_TYPES.map(s => (
-                <EVCard
-                  key={s.value}
-                  hover
-                  onClick={() => { setSelectedService(s); setField('serviceType', s.value); }}
-                  style={{
-                    cursor: 'pointer',
-                    border: form.serviceType === s.value ? '1.5px solid #00D4AA' : '1px solid rgba(255,255,255,0.07)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <p className="ev-heading" style={{ color: '#F8FAFC', fontWeight: 600, fontSize: '14px', margin: '0 0 4px' }}>{s.label}</p>
-                      <p style={{ color: '#94A3B8', fontSize: '12px', margin: 0 }}>{s.desc}</p>
+              {SERVICE_TYPES.map(s => {
+                const isSelected = selectedServices.some(sel => sel.value === s.value);
+                return (
+                  <EVCard
+                    key={s.value}
+                    hover
+                    onClick={() => {
+                      let next;
+                      if (isSelected) {
+                        next = selectedServices.filter(sel => sel.value !== s.value);
+                      } else {
+                        next = [...selectedServices, s];
+                      }
+                      setSelectedServices(next);
+                      // Primary serviceType = first selected (backend requires a single serviceType)
+                      setField('serviceType', next.length > 0 ? next[0].value : '');
+                    }}
+                    style={{
+                      cursor: 'pointer',
+                      border: isSelected ? '1.5px solid #00D4AA' : '1px solid rgba(255,255,255,0.07)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <p className="ev-heading" style={{ color: '#F8FAFC', fontWeight: 600, fontSize: '14px', margin: '0 0 4px' }}>{s.label}</p>
+                        <p style={{ color: '#94A3B8', fontSize: '12px', margin: 0 }}>{s.desc}</p>
+                      </div>
+                      {isSelected && <CheckCircle2 size={16} color="#00D4AA" flexShrink={0} />}
                     </div>
-                    {form.serviceType === s.value && <CheckCircle2 size={16} color="#00D4AA" flexShrink={0} />}
-                  </div>
-                </EVCard>
-              ))}
+                  </EVCard>
+                );
+              })}
             </div>
             {/* Description */}
             <div style={{ marginTop: '20px' }}>
@@ -339,7 +352,7 @@ export default function EVBookServicePage() {
                 { label: 'EV Vehicle',  val: selectedVehicle ? `${selectedVehicle.manufacturer} ${selectedVehicle.model} (${selectedVehicle.vehicleNumber})` : '—' },
                 { label: 'Workshop',    val: selectedWorkshop?.workshopName ?? '—' },
                 { label: 'Location',    val: selectedWorkshop ? `${selectedWorkshop.city}, ${selectedWorkshop.state}` : '—' },
-                { label: 'Service',     val: selectedService?.label ?? '—' },
+                { label: 'Service(s)',  val: selectedServices.length > 0 ? selectedServices.map(s => s.label).join(', ') : '—' },
                 { label: 'Your Address',val: form.customerAddress || '—' },
                 { label: 'Notes',       val: form.description || 'None' },
               ].map(({ label, val }) => (
@@ -364,7 +377,7 @@ export default function EVBookServicePage() {
   const canNext = () => {
     if (step === 0) return !!form.vehicleId;
     if (step === 1) return !!form.selectedWorkshopId;
-    if (step === 2) return !!form.serviceType;
+    if (step === 2) return selectedServices.length > 0;
     if (step === 3) return !!(form.customerLatitude && form.customerLongitude);
     return true;
   };

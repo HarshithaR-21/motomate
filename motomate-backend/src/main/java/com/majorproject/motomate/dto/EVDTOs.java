@@ -138,6 +138,11 @@ public class EVDTOs {
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class AssignWorkerRequest {
+        @NotBlank private String workerId;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class EVWorkerResponse {
         private String id;
         private String workshopId;

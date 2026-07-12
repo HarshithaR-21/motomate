@@ -14,7 +14,7 @@ const STATUS_OPTIONS = [
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
 
-const getWorkshopId = () => {
+const getCachedWorkshopId = () => {
   try {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     return (user && (user.workshopId || user.id)) || localStorage.getItem('evWorkshopId');
@@ -25,23 +25,39 @@ const getWorkshopId = () => {
 
 export default function EVWorkshopRequestsPage() {
   const [requests, setRequests] = useState([]);
+  const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(null);
+  const [assigning, setAssigning] = useState(null);
   const [toast, setToast] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const workshopId = getWorkshopId();
+  const [workshopId, setWorkshopId] = useState(getCachedWorkshopId());
 
   const load = async () => {
-    if (!workshopId) {
-      setError('No EV workshop is linked to this account.');
-      setLoading(false);
-      return;
+    let id = workshopId;
+    if (!id) {
+      try {
+        const workshop = await evWorkshopApi.getMyWorkshop();
+        id = workshop.id;
+        setWorkshopId(id);
+        try {
+          const user = JSON.parse(localStorage.getItem('user') || '{}');
+          localStorage.setItem('user', JSON.stringify({ ...user, workshopId: id }));
+        } catch {}
+      } catch (e) {
+        setError('No EV workshop is linked to this account.');
+        setLoading(false);
+        return;
+      }
     }
     try {
-      const reqs = await evWorkshopApi.getRequests(workshopId);
+      const [reqs, workerList] = await Promise.all([
+        evWorkshopApi.getRequests(id),
+        evWorkshopApi.getWorkers(id).catch(() => []),
+      ]);
       setRequests(reqs);
+      setWorkers(workerList);
       setError(null);
     } catch (e) {
       setError(e.message);
@@ -66,6 +82,21 @@ export default function EVWorkshopRequestsPage() {
       setToast({ msg: e.message || 'Failed to update status', type: 'error' });
     } finally {
       setUpdating(null);
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
+  const handleAssignWorker = async (requestId, workerId) => {
+    if (!workerId) return;
+    setAssigning(requestId);
+    try {
+      await evWorkshopApi.assignWorker(requestId, workerId);
+      setToast({ msg: 'Technician assigned', type: 'success' });
+      await load();
+    } catch (e) {
+      setToast({ msg: e.message || 'Failed to assign technician', type: 'error' });
+    } finally {
+      setAssigning(null);
       setTimeout(() => setToast(null), 3000);
     }
   };
@@ -147,6 +178,18 @@ export default function EVWorkshopRequestsPage() {
                     </div>
                   ) : (
                     <div style={{ marginTop: '16px', display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: '200px' }}>
+                        <EVSelect
+                          label="Assign technician"
+                          value={r.assignedWorkerId || ''}
+                          onChange={e => handleAssignWorker(r.id, e.target.value)}
+                          options={[
+                            { value: '', label: r.assignedWorkerName ? r.assignedWorkerName : 'Select technician' },
+                            ...workers.map(w => ({ value: w.id, label: `${w.name}${w.specialization ? ` (${w.specialization.replace(/_/g, ' ')})` : ''}${w.availabilityStatus !== 'AVAILABLE' ? ` — ${w.availabilityStatus}` : ''}` })),
+                          ]}
+                        />
+                      </div>
+                      {assigning === r.id && <span style={{ color: '#94A3B8', fontSize: '12px' }}>Assigning…</span>}
                       <div style={{ minWidth: '200px' }}>
                         <EVSelect
                           label="Update status"

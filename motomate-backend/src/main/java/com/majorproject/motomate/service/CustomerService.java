@@ -210,6 +210,11 @@ public class CustomerService {
         return customerServiceRepository.findAll();
     }
 
+    // 2a. Get services for a specific (logged-in) customer
+    public List<CustomerServiceModel> getServicesForUser(String userId) {
+        return customerServiceRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
     // 2b. Get distinct vehicles previously used for service bookings by this customer
     public List<java.util.Map<String, Object>> getPreviousVehicles(String userId) {
         List<CustomerServiceModel> myServices = customerServiceRepository.findByUserIdOrderByCreatedAtDesc(userId);

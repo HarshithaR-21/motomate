@@ -27,6 +27,9 @@ public class EVWorkshop {
     @Id
     private String id;
 
+    /** References UserModel.id of the SERVICE_CENTER_OWNER who manages this EV workshop (for login/dashboard resolution). */
+    private String ownerId;
+
     private String workshopName;
     private String ownerName;
     private String phoneNumber;
